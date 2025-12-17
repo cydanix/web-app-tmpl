@@ -41,12 +41,16 @@ export default function Header() {
               Docs
             </a>
             <div className="d-flex gap-2 ms-lg-3 mt-3 mt-lg-0">
-              <Button variant="outline-primary" size="sm">
-                Sign In
-              </Button>
-              <Button variant="primary" size="sm">
-                Sign Up
-              </Button>
+              <Link href="/signin">
+                <Button variant="outline-primary" size="sm">
+                  Sign In
+                </Button>
+              </Link>
+              <Link href="/signup">
+                <Button variant="primary" size="sm">
+                  Sign Up
+                </Button>
+              </Link>
             </div>
           </Nav>
         </Navbar.Collapse>

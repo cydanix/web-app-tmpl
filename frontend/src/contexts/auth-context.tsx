@@ -1,0 +1,211 @@
+"use client";
+
+import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { useRouter } from "next/navigation";
+
+interface AccountInfo {
+  id: string;
+  iam_account_id: string;
+  email: string;
+  display_name: string | null;
+  avatar_url: string | null;
+  auth_type: string;
+}
+
+interface AuthTokens {
+  access_token: string;
+  refresh_token: string;
+  access_token_expires_at: string;
+  refresh_token_expires_at: string;
+}
+
+interface AuthContextType {
+  user: AccountInfo | null;
+  tokens: AuthTokens | null;
+  loading: boolean;
+  signup: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
+  googleLogin: (idToken: string) => Promise<void>;
+  logout: () => Promise<void>;
+  refreshUser: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [user, setUser] = useState<AccountInfo | null>(null);
+  const [tokens, setTokens] = useState<AuthTokens | null>(null);
+  const [loading, setLoading] = useState(true);
+  const router = useRouter();
+
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+  useEffect(() => {
+    // Check for stored tokens on mount
+    const storedTokens = localStorage.getItem("auth_tokens");
+    if (storedTokens) {
+      try {
+        const parsed = JSON.parse(storedTokens);
+        setTokens(parsed);
+        // Verify token and get user info
+        refreshUser();
+      } catch (e) {
+        localStorage.removeItem("auth_tokens");
+        setLoading(false);
+      }
+    } else {
+      setLoading(false);
+    }
+  }, []);
+
+  const refreshUser = async () => {
+    const storedTokens = localStorage.getItem("auth_tokens");
+    if (!storedTokens) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedTokens);
+      const response = await fetch(`${apiUrl}/api/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${parsed.access_token}`,
+        },
+      });
+
+      if (response.ok) {
+        const account = await response.json();
+        setUser(account);
+      } else {
+        // Token invalid, clear storage
+        localStorage.removeItem("auth_tokens");
+        setTokens(null);
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Failed to refresh user:", error);
+      localStorage.removeItem("auth_tokens");
+      setTokens(null);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const signup = async (email: string, password: string) => {
+    const response = await fetch(`${apiUrl}/api/auth/signup`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Signup failed");
+    }
+
+    const data = await response.json();
+    // Redirect to verification page with account info
+    router.push(`/verify?email=${encodeURIComponent(data.email)}&account_id=${data.account_id}`);
+  };
+
+  const login = async (email: string, password: string) => {
+    const response = await fetch(`${apiUrl}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Login failed");
+    }
+
+    const data = await response.json();
+    setUser(data.account);
+    const tokenData = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      access_token_expires_at: data.access_token_expires_at,
+      refresh_token_expires_at: data.refresh_token_expires_at,
+    };
+    setTokens(tokenData);
+    localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
+    router.push("/dashboard");
+  };
+
+  const googleLogin = async (idToken: string) => {
+    const response = await fetch(`${apiUrl}/api/auth/google`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id_token: idToken }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json();
+      throw new Error(error.error || "Google login failed");
+    }
+
+    const data = await response.json();
+    setUser(data.account);
+    const tokenData = {
+      access_token: data.access_token,
+      refresh_token: data.refresh_token,
+      access_token_expires_at: data.access_token_expires_at,
+      refresh_token_expires_at: data.refresh_token_expires_at,
+    };
+    setTokens(tokenData);
+    localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
+    router.push("/dashboard");
+  };
+
+  const logout = async () => {
+    const storedTokens = localStorage.getItem("auth_tokens");
+    if (storedTokens) {
+      try {
+        const parsed = JSON.parse(storedTokens);
+        await fetch(`${apiUrl}/api/auth/logout`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${parsed.access_token}`,
+          },
+          body: JSON.stringify({ access_token: parsed.access_token }),
+        });
+      } catch (error) {
+        console.error("Logout error:", error);
+      }
+    }
+
+    localStorage.removeItem("auth_tokens");
+    setTokens(null);
+    setUser(null);
+    router.push("/");
+  };
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        tokens,
+        loading,
+        signup,
+        login,
+        googleLogin,
+        logout,
+        refreshUser,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+export function useAuth() {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+}
+

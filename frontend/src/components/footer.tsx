@@ -53,6 +53,21 @@ export default function Footer() {
             </ul>
           </Col>
           <Col lg={2} md={6} className="mb-4 mb-lg-0">
+            <h6 className="fw-bold mb-3">Account</h6>
+            <ul className="list-unstyled">
+              <li className="mb-2">
+                <Link href="/signin" className="text-white-50 text-decoration-none hover:text-white">
+                  Sign In
+                </Link>
+              </li>
+              <li className="mb-2">
+                <Link href="/signup" className="text-white-50 text-decoration-none hover:text-white">
+                  Sign Up
+                </Link>
+              </li>
+            </ul>
+          </Col>
+          <Col lg={2} md={6} className="mb-4 mb-lg-0">
             <h6 className="fw-bold mb-3">Resources</h6>
             <ul className="list-unstyled">
               <li className="mb-2">

@@ -143,9 +143,11 @@ export default function Home() {
                 delivering unmatched performance and reliability.
               </p>
               <div className="d-flex gap-3 flex-wrap">
-                <Button variant="light" size="lg" className="px-5 fw-semibold">
-                  Start Free Trial
-                </Button>
+                <Link href="/signup">
+                  <Button variant="light" size="lg" className="px-5 fw-semibold">
+                    Start Free Trial
+                  </Button>
+                </Link>
                 <Link href="/status">
                   <Button variant="outline-light" size="lg" className="px-5">
                     View Status
@@ -286,13 +288,15 @@ export default function Home() {
                         </li>
                       ))}
                     </ul>
-                    <Button
-                      variant={plan.highlighted ? "primary" : "outline-primary"}
-                      size="lg"
-                      className="w-100"
-                    >
-                      Get Started
-                    </Button>
+                    <Link href="/signup" className="w-100">
+                      <Button
+                        variant={plan.highlighted ? "primary" : "outline-primary"}
+                        size="lg"
+                        className="w-100"
+                      >
+                        Get Started
+                      </Button>
+                    </Link>
                   </Card.Body>
                 </Card>
               </Col>
@@ -314,9 +318,11 @@ export default function Home() {
                 Start your free trial today, no credit card required.
               </p>
               <div className="d-flex gap-3 justify-content-center flex-wrap">
-                <Button variant="light" size="lg" className="px-5 fw-semibold">
-                  Start Free Trial
-                </Button>
+                <Link href="/signup">
+                  <Button variant="light" size="lg" className="px-5 fw-semibold">
+                    Start Free Trial
+                  </Button>
+                </Link>
                 <Button variant="outline-light" size="lg" className="px-5">
                   Schedule a Demo
                 </Button>
