@@ -12,4 +12,5 @@ chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
 env_logger = "0.11"
 log = "0.4"
+nano-iam = { path = "../external/nano-iam" }
 
