@@ -19,11 +19,15 @@ A full-stack web application template with Rust Actix backend and Next.js fronte
 
 ## Features
 
-- Real-time server status page
-- Server time display with auto-refresh (every 5 seconds)
-- Beautiful, responsive UI with dark mode support
-- RESTful API endpoints
-- CORS enabled for development
+- **Beautiful Landing Page** (/) with hero section, features, testimonials, and pricing
+- **About Page** (/about) with team, values, and company story
+- **Real-time Server Status Page** (/status) with auto-refresh (every 5 seconds)
+- **Custom Error Pages** (404 and 500) with user-friendly messaging
+- **Reusable Components** (Header and Footer)
+- **Responsive Design** with dark mode support
+- **RESTful API** endpoints
+- **CORS** enabled for development
+- Modern UI with React Bootstrap and Tailwind CSS
 
 ## Project Structure
 
@@ -37,10 +41,19 @@ web-app-tmpl/
 │
 └── frontend/         # Next.js frontend
     ├── src/
-    │   └── app/      # Next.js App Router
-    │       ├── page.tsx      # Status page
-    │       ├── layout.tsx    # Root layout
-    │       └── globals.css   # Global styles
+    │   ├── app/              # Next.js App Router
+    │   │   ├── page.tsx          # Landing page (/)
+    │   │   ├── about/
+    │   │   │   └── page.tsx      # About page (/about)
+    │   │   ├── status/
+    │   │   │   └── page.tsx      # Status page (/status)
+    │   │   ├── not-found.tsx     # 404 error page
+    │   │   ├── error.tsx         # 500 error page
+    │   │   ├── layout.tsx        # Root layout with header
+    │   │   └── globals.css       # Global styles
+    │   └── components/       # Reusable components
+    │       ├── header.tsx        # Navigation header
+    │       └── footer.tsx        # Site footer
     ├── package.json          # Node dependencies
     ├── tsconfig.json         # TypeScript config
     ├── tailwind.config.ts    # Tailwind config
@@ -123,6 +136,14 @@ npm run dev
 ```
 
 Then open [http://localhost:3000](http://localhost:3000) in your browser.
+
+## Available Pages
+
+- **Home**: http://localhost:3000/
+- **About**: http://localhost:3000/about
+- **Status**: http://localhost:3000/status
+
+For more details on pages and routes, see [PAGES.md](PAGES.md).
 
 ## API Endpoints
 
