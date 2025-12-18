@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, Badge, Spinner, Alert } from "react-bootstrap";
-
-interface StatusData {
-  status: string;
-  server_time: string;
-  timestamp: number;
-}
+import { getStatus, StatusData } from "@/backend/status";
 
 export default function StatusPage() {
   const [statusData, setStatusData] = useState<StatusData | null>(null);
@@ -17,14 +12,7 @@ export default function StatusPage() {
 
   const fetchStatus = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
-      const response = await fetch(`${apiUrl}/status`);
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      
-      const data: StatusData = await response.json();
+      const data = await getStatus();
       setStatusData(data);
       setError(null);
       setLastUpdate(new Date());

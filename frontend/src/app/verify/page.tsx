@@ -4,6 +4,7 @@ import { useState, useEffect, Suspense } from "react";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
+import { verifyEmail, resendVerification } from "@/backend/verify";
 
 function VerifyContent() {
   const [code, setCode] = useState("");
@@ -15,8 +16,6 @@ function VerifyContent() {
   const [resendLoading, setResendLoading] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   useEffect(() => {
     // Get email and account_id from URL params (passed from signup)
@@ -42,20 +41,7 @@ function VerifyContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/auth/verify-email`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          account_id: accountId,
-          code: code,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Verification failed");
-      }
-
+      await verifyEmail(accountId, code);
       setSuccess(true);
       // Redirect to signin after 2 seconds
       setTimeout(() => {
@@ -73,17 +59,7 @@ function VerifyContent() {
     setResendLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/auth/resend-verification`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to resend verification code");
-      }
-
+      await resendVerification(email);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 3000);
     } catch (err) {

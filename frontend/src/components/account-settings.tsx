@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Form, Button, Alert, Modal } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
+import { changePassword, deleteAccount } from "@/backend/account";
 
 export default function AccountSettings() {
   const { user } = useAuth();
@@ -15,8 +16,6 @@ export default function AccountSettings() {
   const [loading, setLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,29 +35,7 @@ export default function AccountSettings() {
     setLoading(true);
 
     try {
-      const tokens = localStorage.getItem("auth_tokens");
-      if (!tokens) {
-        throw new Error("Not authenticated");
-      }
-
-      const parsed = JSON.parse(tokens);
-      const response = await fetch(`${apiUrl}/auth/change-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${parsed.access_token}`,
-        },
-        body: JSON.stringify({
-          old_password: oldPassword,
-          new_password: newPassword,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to change password");
-      }
-
+      await changePassword(oldPassword, newPassword);
       setSuccess("Password changed successfully");
       setOldPassword("");
       setNewPassword("");
@@ -75,28 +52,7 @@ export default function AccountSettings() {
     setDeleteLoading(true);
 
     try {
-      const tokens = localStorage.getItem("auth_tokens");
-      if (!tokens) {
-        throw new Error("Not authenticated");
-      }
-
-      const parsed = JSON.parse(tokens);
-      const response = await fetch(`${apiUrl}/auth/delete-account`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${parsed.access_token}`,
-        },
-        body: JSON.stringify({
-          password: deletePassword,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || "Failed to delete account");
-      }
-
+      await deleteAccount(deletePassword);
       // Account deleted, logout will be handled by auth context
       setShowDeleteModal(false);
     } catch (err) {

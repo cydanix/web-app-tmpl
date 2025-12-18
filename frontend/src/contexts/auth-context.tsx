@@ -2,22 +2,16 @@
 
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
-
-interface AccountInfo {
-  id: string;
-  iam_account_id: string;
-  email: string;
-  display_name: string | null;
-  avatar_url: string | null;
-  auth_type: string;
-}
-
-interface AuthTokens {
-  access_token: string;
-  refresh_token: string;
-  access_token_expires_at: string;
-  refresh_token_expires_at: string;
-}
+import {
+  AccountInfo,
+  AuthTokens,
+  signup as signupApi,
+  login as loginApi,
+  googleLogin as googleLoginApi,
+  logout as logoutApi,
+  refreshToken,
+  getCurrentUser,
+} from "@/backend/auth";
 
 interface AuthContextType {
   user: AccountInfo | null;
@@ -40,8 +34,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const tokensRef = useRef<AuthTokens | null>(null);
   const isRefreshingRef = useRef<boolean>(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
-
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   // Keep tokensRef in sync with tokens state
   useEffect(() => {
@@ -93,36 +85,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isRefreshingRef.current = true;
 
       try {
-        const response = await fetch(`${apiUrl}/auth/refresh`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ refresh_token: currentRefreshToken }),
-        });
-
-        if (response.ok) {
-          const data = await response.json();
-          const tokenData = {
-            access_token: data.access_token,
-            refresh_token: data.refresh_token,
-            access_token_expires_at: data.access_token_expires_at,
-            refresh_token_expires_at: data.refresh_token_expires_at,
-          };
-          setTokens(tokenData);
-          localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
-          
-          // Update user info if account data is present
-          if (data.account) {
-            setUser(data.account);
-          }
-        } else {
-          // Refresh token invalid, logout user
-          console.error("Failed to refresh token");
-          localStorage.removeItem("auth_tokens");
-          setTokens(null);
-          setUser(null);
+        const data = await refreshToken(currentRefreshToken);
+        const tokenData = {
+          access_token: data.access_token,
+          refresh_token: data.refresh_token,
+          access_token_expires_at: data.access_token_expires_at,
+          refresh_token_expires_at: data.refresh_token_expires_at,
+        };
+        setTokens(tokenData);
+        localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
+        
+        // Update user info if account data is present
+        if (data.account) {
+          setUser(data.account);
         }
       } catch (error) {
+        // Refresh token invalid, logout user
         console.error("Error refreshing token:", error);
+        localStorage.removeItem("auth_tokens");
+        setTokens(null);
+        setUser(null);
       } finally {
         isRefreshingRef.current = false;
       }
@@ -143,7 +125,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearTimeout(timeout);
       refreshIntervalRef.current = null;
     };
-  }, [tokens?.refresh_token, apiUrl]);
+  }, [tokens?.refresh_token]);
 
   const refreshUser = async () => {
     const storedTokens = localStorage.getItem("auth_tokens");
@@ -153,22 +135,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     try {
-      const parsed = JSON.parse(storedTokens);
-      const response = await fetch(`${apiUrl}/auth/me`, {
-        headers: {
-          Authorization: `Bearer ${parsed.access_token}`,
-        },
-      });
-
-      if (response.ok) {
-        const account = await response.json();
-        setUser(account);
-      } else {
-        // Token invalid, clear storage
-        localStorage.removeItem("auth_tokens");
-        setTokens(null);
-        setUser(null);
-      }
+      const account = await getCurrentUser();
+      setUser(account);
     } catch (error) {
       console.error("Failed to refresh user:", error);
       localStorage.removeItem("auth_tokens");
@@ -180,35 +148,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string) => {
-    const response = await fetch(`${apiUrl}/auth/signup`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Signup failed");
-    }
-
-    const data = await response.json();
+    const data = await signupApi(email, password);
     // Redirect to verification page with account info
     router.push(`/verify?email=${encodeURIComponent(data.email)}&account_id=${data.account_id}`);
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${apiUrl}/auth/login`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Login failed");
-    }
-
-    const data = await response.json();
+    const data = await loginApi(email, password);
     setUser(data.account);
     const tokenData = {
       access_token: data.access_token,
@@ -222,18 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const googleLogin = async (idToken: string) => {
-    const response = await fetch(`${apiUrl}/auth/google`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id_token: idToken }),
-    });
-
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.error || "Google login failed");
-    }
-
-    const data = await response.json();
+    const data = await googleLoginApi(idToken);
     setUser(data.account);
     const tokenData = {
       access_token: data.access_token,
@@ -247,21 +182,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    const storedTokens = localStorage.getItem("auth_tokens");
-    if (storedTokens) {
-      try {
-        const parsed = JSON.parse(storedTokens);
-        await fetch(`${apiUrl}/auth/logout`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${parsed.access_token}`,
-          },
-          body: JSON.stringify({ access_token: parsed.access_token }),
-        });
-      } catch (error) {
-        console.error("Logout error:", error);
-      }
+    try {
+      await logoutApi();
+    } catch (error) {
+      console.error("Logout error:", error);
     }
 
     localStorage.removeItem("auth_tokens");
