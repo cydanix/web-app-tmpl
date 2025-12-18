@@ -163,6 +163,10 @@ async fn main() -> std::io::Result<()> {
                 "/api/auth/resend-verification",
                 web::post().to(handlers::resend_verification),
             )
+            .route(
+                "/api/auth/refresh",
+                web::post().to(handlers::refresh_token),
+            )
             // Protected routes
             .service(
                 web::scope("/api/auth")

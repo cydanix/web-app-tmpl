@@ -8,7 +8,8 @@ use uuid::Uuid;
 use crate::auth::AuthenticatedUser;
 use crate::models::{
     Account, AccountInfo, AuthResponse, ChangePasswordRequest, DeleteAccountRequest,
-    GoogleLoginRequest, LoginRequest, SignupRequest, SignupResponse, VerifyEmailRequest,
+    GoogleLoginRequest, LoginRequest, RefreshTokenRequest, SignupRequest, SignupResponse,
+    VerifyEmailRequest,
 };
 
 pub async fn signup(
@@ -307,6 +308,67 @@ pub async fn google_login(
         refresh_token: login_result.tokens.refresh_token.to_string(),
         access_token_expires_at: login_result.tokens.access_token_expires_at,
         refresh_token_expires_at: login_result.tokens.refresh_token_expires_at,
+    })
+}
+
+pub async fn refresh_token(
+    auth_service: web::Data<Arc<AuthService>>,
+    db: web::Data<PgPool>,
+    req: web::Json<RefreshTokenRequest>,
+) -> impl Responder {
+    let refresh_result = match auth_service.refresh(&req.refresh_token).await {
+        Ok(result) => result,
+        Err(IamError::TokenExpired) | Err(IamError::TokenNotFound) | Err(IamError::TokenRevoked) => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Invalid or expired refresh token"
+            }));
+        }
+        Err(IamError::TokenReuseDetected) => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Refresh token has been compromised"
+            }));
+        }
+        Err(e) => {
+            log::error!("Token refresh error: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to refresh token"
+            }));
+        }
+    };
+
+    // Get our Account record
+    let account = match sqlx::query_as::<_, Account>(
+        r#"
+        SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
+        FROM app_accounts
+        WHERE iam_account_id = $1
+        "#,
+    )
+    .bind(refresh_result.account.id)
+    .fetch_optional(db.get_ref())
+    .await
+    {
+        Ok(Some(acc)) => acc,
+        Ok(None) | Err(_) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+    };
+
+    HttpResponse::Ok().json(AuthResponse {
+        account: AccountInfo {
+            id: account.id,
+            iam_account_id: account.iam_account_id,
+            email: refresh_result.account.email,
+            display_name: account.display_name,
+            avatar_url: account.avatar_url,
+            auth_type: format!("{:?}", refresh_result.account.auth_type).to_lowercase(),
+        },
+        access_token: refresh_result.tokens.access_token.to_string(),
+        refresh_token: refresh_result.tokens.refresh_token.to_string(),
+        access_token_expires_at: refresh_result.tokens.access_token_expires_at,
+        refresh_token_expires_at: refresh_result.tokens.refresh_token_expires_at,
     })
 }
 

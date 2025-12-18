@@ -8,3 +8,6 @@ run-backend:
 
 run-frontend:
 	cd frontend && npm run dev
+
+run-browser:
+	/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --disable-web-security --user-data-dir=$$HOME/google-chrome-dir http://localhost:3000

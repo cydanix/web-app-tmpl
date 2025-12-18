@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useEffect, ReactNode } from "react";
+import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 
 interface AccountInfo {
@@ -37,8 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
+  const tokensRef = useRef<AuthTokens | null>(null);
+  const isRefreshingRef = useRef<boolean>(false);
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+
+  // Keep tokensRef in sync with tokens state
+  useEffect(() => {
+    tokensRef.current = tokens;
+  }, [tokens]);
 
   useEffect(() => {
     // Check for stored tokens on mount
@@ -57,6 +65,85 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     }
   }, []);
+
+  // Refresh access token every 5 minutes
+  useEffect(() => {
+    // Clear any existing interval
+    if (refreshIntervalRef.current) {
+      clearInterval(refreshIntervalRef.current);
+      refreshIntervalRef.current = null;
+    }
+
+    if (!tokens?.refresh_token) {
+      return;
+    }
+
+    const refreshAccessToken = async () => {
+      // Prevent concurrent refresh attempts
+      if (isRefreshingRef.current) {
+        return;
+      }
+
+      // Use ref to get the latest refresh token
+      const currentRefreshToken = tokensRef.current?.refresh_token;
+      if (!currentRefreshToken) {
+        return;
+      }
+
+      isRefreshingRef.current = true;
+
+      try {
+        const response = await fetch(`${apiUrl}/api/auth/refresh`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ refresh_token: currentRefreshToken }),
+        });
+
+        if (response.ok) {
+          const data = await response.json();
+          const tokenData = {
+            access_token: data.access_token,
+            refresh_token: data.refresh_token,
+            access_token_expires_at: data.access_token_expires_at,
+            refresh_token_expires_at: data.refresh_token_expires_at,
+          };
+          setTokens(tokenData);
+          localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
+          
+          // Update user info if account data is present
+          if (data.account) {
+            setUser(data.account);
+          }
+        } else {
+          // Refresh token invalid, logout user
+          console.error("Failed to refresh token");
+          localStorage.removeItem("auth_tokens");
+          setTokens(null);
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Error refreshing token:", error);
+      } finally {
+        isRefreshingRef.current = false;
+      }
+    };
+
+    // Don't refresh immediately on mount - wait for the first interval
+    // This prevents multiple refresh calls when the component mounts/re-renders
+    const interval = setInterval(refreshAccessToken, 5 * 60 * 1000); // 5 minutes
+    refreshIntervalRef.current = interval;
+
+    // Refresh after a short delay to avoid immediate refresh on mount
+    const timeout = setTimeout(() => {
+      refreshAccessToken();
+    }, 1000); // Wait 1 second before first refresh
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(timeout);
+      refreshIntervalRef.current = null;
+    };
+  }, [tokens?.refresh_token, apiUrl]);
 
   const refreshUser = async () => {
     const storedTokens = localStorage.getItem("auth_tokens");

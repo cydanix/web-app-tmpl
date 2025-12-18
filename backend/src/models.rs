@@ -72,3 +72,8 @@ pub struct ChangePasswordRequest {
 pub struct DeleteAccountRequest {
     pub password: String,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
+}
