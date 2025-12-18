@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL database
+  postgres:
+    env_file:
+      - .env
+    image: postgres:15-alpine
+    container_name: webapp-postgres
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: webapp
+    ports:
+      - "5432:5432"
+    volumes:
+      - /data/webapp/postgresql:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - webapp-network
+
+  # Backend API service
+  backend:
+    env_file:
+      - .env
+    image: webapp-backend:latest
+    container_name: webapp-backend
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/webapp
+      HOST: 0.0.0.0
+      PORT: 8080
+      RUST_LOG: info
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/health || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    networks:
+      - webapp-network
+    restart: unless-stopped
+
+  # Frontend service
+  frontend:
+    env_file:
+      - .env
+    image: webapp-frontend:latest
+    container_name: webapp-frontend
+    environment:
+      PORT: 3000
+      NEXT_PUBLIC_API_URL: http://backend:8080
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3000 || exit 1"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3
+    networks:
+      - webapp-network
+    restart: unless-stopped
+
+networks:
+  webapp-network:
+    driver: bridge
+
