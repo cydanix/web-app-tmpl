@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function SignInPage() {
+function SignInContent() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -146,6 +146,24 @@ export default function SignInPage() {
         </Card>
       </Container>
     </div>
+  );
+}
+
+export default function SignInPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen d-flex align-items-center bg-light py-5">
+        <Container className="max-w-md">
+          <Card className="shadow">
+            <Card.Body className="p-5 text-center">
+              <p>Loading...</p>
+            </Card.Body>
+          </Card>
+        </Container>
+      </div>
+    }>
+      <SignInContent />
+    </Suspense>
   );
 }
 

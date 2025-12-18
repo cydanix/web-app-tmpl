@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 
-export default function VerifyPage() {
+function VerifyContent() {
   const [code, setCode] = useState("");
   const [email, setEmail] = useState("");
   const [accountId, setAccountId] = useState("");
@@ -194,6 +194,24 @@ export default function VerifyPage() {
         </Card>
       </Container>
     </div>
+  );
+}
+
+export default function VerifyPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen d-flex align-items-center bg-light py-5">
+        <Container className="max-w-md">
+          <Card className="shadow">
+            <Card.Body className="p-5 text-center">
+              <p>Loading...</p>
+            </Card.Body>
+          </Card>
+        </Container>
+      </div>
+    }>
+      <VerifyContent />
+    </Suspense>
   );
 }
 
