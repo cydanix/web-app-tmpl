@@ -69,7 +69,7 @@ services:
   backend:
     env_file:
       - .env
-    image: ghcr.io/cydanix/web-app-tmpl/backend:0.0.1
+    image: ghcr.io/cydanix/web-app-tmpl/backend:${BACKEND_VERSION}
     container_name: webapp-backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-webapp}
@@ -93,7 +93,7 @@ services:
   frontend:
     env_file:
       - .env
-    image: ghcr.io/cydanix/web-app-tmpl/frontend:0.0.1
+    image: ghcr.io/cydanix/web-app-tmpl/frontend:${FRONTEND_VERSION}
     container_name: webapp-frontend
     environment:
       PORT: 3000
