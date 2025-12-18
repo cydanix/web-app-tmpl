@@ -16,7 +16,7 @@ export default function AccountSettings() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,7 +42,7 @@ export default function AccountSettings() {
       }
 
       const parsed = JSON.parse(tokens);
-      const response = await fetch(`${apiUrl}/api/auth/change-password`, {
+      const response = await fetch(`${apiUrl}/auth/change-password`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -81,7 +81,7 @@ export default function AccountSettings() {
       }
 
       const parsed = JSON.parse(tokens);
-      const response = await fetch(`${apiUrl}/api/auth/delete-account`, {
+      const response = await fetch(`${apiUrl}/auth/delete-account`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

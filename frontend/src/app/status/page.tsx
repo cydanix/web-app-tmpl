@@ -17,8 +17,8 @@ export default function StatusPage() {
 
   const fetchStatus = async () => {
     try {
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
-      const response = await fetch(`${apiUrl}/api/status`);
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
+      const response = await fetch(`${apiUrl}/status`);
       
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);

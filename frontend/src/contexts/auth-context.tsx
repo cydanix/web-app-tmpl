@@ -41,7 +41,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const isRefreshingRef = useRef<boolean>(false);
   const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   // Keep tokensRef in sync with tokens state
   useEffect(() => {
@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isRefreshingRef.current = true;
 
       try {
-        const response = await fetch(`${apiUrl}/api/auth/refresh`, {
+        const response = await fetch(`${apiUrl}/auth/refresh`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ refresh_token: currentRefreshToken }),
@@ -154,7 +154,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     try {
       const parsed = JSON.parse(storedTokens);
-      const response = await fetch(`${apiUrl}/api/auth/me`, {
+      const response = await fetch(`${apiUrl}/auth/me`, {
         headers: {
           Authorization: `Bearer ${parsed.access_token}`,
         },
@@ -180,7 +180,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signup = async (email: string, password: string) => {
-    const response = await fetch(`${apiUrl}/api/auth/signup`, {
+    const response = await fetch(`${apiUrl}/auth/signup`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -197,7 +197,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const login = async (email: string, password: string) => {
-    const response = await fetch(`${apiUrl}/api/auth/login`, {
+    const response = await fetch(`${apiUrl}/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
@@ -222,7 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const googleLogin = async (idToken: string) => {
-    const response = await fetch(`${apiUrl}/api/auth/google`, {
+    const response = await fetch(`${apiUrl}/auth/google`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id_token: idToken }),
@@ -251,7 +251,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (storedTokens) {
       try {
         const parsed = JSON.parse(storedTokens);
-        await fetch(`${apiUrl}/api/auth/logout`, {
+        await fetch(`${apiUrl}/auth/logout`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",

@@ -16,7 +16,7 @@ function VerifyContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080";
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080/api";
 
   useEffect(() => {
     // Get email and account_id from URL params (passed from signup)
@@ -42,7 +42,7 @@ function VerifyContent() {
     setLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/auth/verify-email`, {
+      const response = await fetch(`${apiUrl}/auth/verify-email`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -73,7 +73,7 @@ function VerifyContent() {
     setResendLoading(true);
 
     try {
-      const response = await fetch(`${apiUrl}/api/auth/resend-verification`, {
+      const response = await fetch(`${apiUrl}/auth/resend-verification`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
