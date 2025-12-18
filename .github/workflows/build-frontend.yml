@@ -49,6 +49,19 @@ jobs:
             type=raw,value=${{ steps.version.outputs.version }}
             type=ref,event=tag
 
+      - name: Set API URL build arg
+        id: api-url
+        env:
+          VAR_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+        run: |
+          if [ -n "$VAR_API_URL" ]; then
+            echo "api_url=$VAR_API_URL" >> $GITHUB_OUTPUT
+            echo "Using API URL from vars: $VAR_API_URL"
+          else
+            echo "api_url=/api" >> $GITHUB_OUTPUT
+            echo "Using default API URL: /api"
+          fi
+
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
@@ -58,7 +71,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL || 'http://localhost:8080' }}
+            NEXT_PUBLIC_API_URL=${{ steps.api-url.outputs.api_url }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           platforms: linux/amd64
