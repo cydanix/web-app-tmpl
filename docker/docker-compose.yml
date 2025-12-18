@@ -1,6 +1,50 @@
 version: '3.8'
 
 services:
+  # Nginx reverse proxy with SSL
+  nginx:
+    image: nginx:alpine
+    container_name: webapp-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx-init.conf:/etc/nginx/nginx-init.conf:ro
+      - ./nginx-entrypoint.sh:/docker-entrypoint.sh:ro
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    depends_on:
+      - frontend
+    networks:
+      - webapp-network
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+    env_file:
+      - .env
+
+  # Certbot for Let's Encrypt certificates
+  certbot:
+    image: certbot/certbot
+    container_name: webapp-certbot
+    volumes:
+      - ./certbot-entrypoint.sh:/docker-entrypoint.sh:ro
+      - certbot-www:/var/www/certbot
+      - certbot-conf:/etc/letsencrypt
+    networks:
+      - webapp-network
+    entrypoint: ["/bin/sh", "/docker-entrypoint.sh"]
+    environment:
+      - DOMAIN=${DOMAIN:-localhost}
+      - EMAIL=${EMAIL:-}
+      - STAGING=${STAGING:-0}
+    env_file:
+      - .env
+    depends_on:
+      - nginx
+
   # PostgreSQL database
   postgres:
     env_file:
@@ -11,8 +55,6 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: webapp
-    ports:
-      - "5432:5432"
     volumes:
       - /data/webapp/postgresql:/var/lib/postgresql/data
     healthcheck:
@@ -27,15 +69,13 @@ services:
   backend:
     env_file:
       - .env
-    image: webapp-backend:latest
+    image: ghcr.io/cydanix/web-app-tmpl/backend:0.0.1
     container_name: webapp-backend
     environment:
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/webapp
       HOST: 0.0.0.0
       PORT: 8080
       RUST_LOG: info
-    ports:
-      - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
@@ -53,13 +93,11 @@ services:
   frontend:
     env_file:
       - .env
-    image: webapp-frontend:latest
+    image: ghcr.io/cydanix/web-app-tmpl/frontend:0.0.1
     container_name: webapp-frontend
     environment:
       PORT: 3000
       NEXT_PUBLIC_API_URL: http://backend:8080
-    ports:
-      - "3000:3000"
     depends_on:
       - backend
     healthcheck:
@@ -71,6 +109,10 @@ services:
     networks:
       - webapp-network
     restart: unless-stopped
+
+volumes:
+  certbot-www:
+  certbot-conf:
 
 networks:
   webapp-network:
