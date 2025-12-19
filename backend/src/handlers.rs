@@ -1,20 +1,18 @@
 use actix_web::{web, HttpResponse, Responder};
-use chrono::Utc;
 use nano_iam::{AuthService, AuthType, IamError};
-use sqlx::PgPool;
 use std::sync::Arc;
-use uuid::Uuid;
 
 use crate::auth::AuthenticatedUser;
+use crate::dba::DbContext;
 use crate::models::{
-    Account, AccountInfo, AuthResponse, ChangePasswordRequest, DeleteAccountRequest,
+    AccountInfo, AuthResponse, ChangePasswordRequest, DeleteAccountRequest,
     GoogleLoginRequest, LoginRequest, RefreshTokenRequest, SignupRequest, SignupResponse,
     VerifyEmailRequest,
 };
 
 pub async fn signup(
     auth_service: web::Data<Arc<AuthService>>,
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     req: web::Json<SignupRequest>,
 ) -> impl Responder {
     // Register with IAM
@@ -39,28 +37,17 @@ pub async fn signup(
     };
 
     // Create our Account record linked to IAM account
-    let _account = match sqlx::query_as::<_, Account>(
-        r#"
-        INSERT INTO app_accounts (id, iam_account_id, display_name, created_at, updated_at)
-        VALUES ($1, $2, $3, $4, $4)
-        RETURNING id, iam_account_id, display_name, avatar_url, created_at, updated_at
-        "#,
+    if let Err(e) = db.create_account(
+        iam_account.id,
+        iam_account.email.clone(),
     )
-    .bind(Uuid::new_v4())
-    .bind(iam_account.id)
-    .bind(iam_account.email.clone())
-    .bind(Utc::now())
-    .fetch_one(db.get_ref())
     .await
     {
-        Ok(acc) => acc,
-        Err(e) => {
-            log::error!("Failed to create account record: {:?}", e);
-            return HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to create account"
-            }));
-        }
-    };
+        log::error!("Failed to create account record: {:?}", e);
+        return HttpResponse::InternalServerError().json(serde_json::json!({
+            "error": "Failed to create account"
+        }));
+    }
 
     // Return signup response without tokens - user needs to verify email first
     HttpResponse::Ok().json(SignupResponse {
@@ -138,7 +125,7 @@ pub async fn resend_verification(
 
 pub async fn login(
     auth_service: web::Data<Arc<AuthService>>,
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     req: web::Json<LoginRequest>,
 ) -> impl Responder {
     let login_result = match auth_service
@@ -164,44 +151,14 @@ pub async fn login(
         }
     };
 
-    // Get our Account record
-    let account = match sqlx::query_as::<_, Account>(
-        r#"
-        SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
-        FROM app_accounts
-        WHERE iam_account_id = $1
-        "#,
+    // Get our Account record, or create it if it doesn't exist
+    let account = match db.get_or_create_account_by_iam_id(
+        login_result.account.id,
+        login_result.account.email.clone(),
     )
-    .bind(login_result.account.id)
-    .fetch_optional(db.get_ref())
     .await
     {
-        Ok(Some(acc)) => acc,
-        Ok(None) => {
-            // Account doesn't exist in our table, create it
-            match sqlx::query_as::<_, Account>(
-                r#"
-                INSERT INTO app_accounts (id, iam_account_id, display_name, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $4)
-                RETURNING id, iam_account_id, display_name, avatar_url, created_at, updated_at
-                "#,
-            )
-            .bind(Uuid::new_v4())
-            .bind(login_result.account.id)
-            .bind(login_result.account.email.clone())
-            .bind(Utc::now())
-            .fetch_one(db.get_ref())
-            .await
-            {
-                Ok(acc) => acc,
-                Err(e) => {
-                    log::error!("Failed to create account record: {:?}", e);
-                    return HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to create account"
-                    }));
-                }
-            }
-        }
+        Ok(acc) => acc,
         Err(e) => {
             log::error!("Database error: {:?}", e);
             return HttpResponse::InternalServerError().json(serde_json::json!({
@@ -228,7 +185,7 @@ pub async fn login(
 
 pub async fn google_login(
     auth_service: web::Data<Arc<AuthService>>,
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     req: web::Json<GoogleLoginRequest>,
 ) -> impl Responder {
     let login_result = match auth_service
@@ -250,43 +207,13 @@ pub async fn google_login(
     };
 
     // Get or create our Account record
-    let account = match sqlx::query_as::<_, Account>(
-        r#"
-        SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
-        FROM app_accounts
-        WHERE iam_account_id = $1
-        "#,
+    let account = match db.get_or_create_account_by_iam_id(
+        login_result.account.id,
+        login_result.account.email.clone(),
     )
-    .bind(login_result.account.id)
-    .fetch_optional(db.get_ref())
     .await
     {
-        Ok(Some(acc)) => acc,
-        Ok(None) => {
-            // Account doesn't exist in our table, create it
-            match sqlx::query_as::<_, Account>(
-                r#"
-                INSERT INTO app_accounts (id, iam_account_id, display_name, created_at, updated_at)
-                VALUES ($1, $2, $3, $4, $4)
-                RETURNING id, iam_account_id, display_name, avatar_url, created_at, updated_at
-                "#,
-            )
-            .bind(Uuid::new_v4())
-            .bind(login_result.account.id)
-            .bind(login_result.account.email.clone())
-            .bind(Utc::now())
-            .fetch_one(db.get_ref())
-            .await
-            {
-                Ok(acc) => acc,
-                Err(e) => {
-                    log::error!("Failed to create account record: {:?}", e);
-                    return HttpResponse::InternalServerError().json(serde_json::json!({
-                        "error": "Failed to create account"
-                    }));
-                }
-            }
-        }
+        Ok(acc) => acc,
         Err(e) => {
             log::error!("Database error: {:?}", e);
             return HttpResponse::InternalServerError().json(serde_json::json!({
@@ -313,7 +240,7 @@ pub async fn google_login(
 
 pub async fn refresh_token(
     auth_service: web::Data<Arc<AuthService>>,
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     req: web::Json<RefreshTokenRequest>,
 ) -> impl Responder {
     let refresh_result = match auth_service.refresh(&req.refresh_token).await {
@@ -337,21 +264,17 @@ pub async fn refresh_token(
     };
 
     // Get our Account record
-    let account = match sqlx::query_as::<_, Account>(
-        r#"
-        SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
-        FROM app_accounts
-        WHERE iam_account_id = $1
-        "#,
-    )
-    .bind(refresh_result.account.id)
-    .fetch_optional(db.get_ref())
-    .await
-    {
+    let account = match db.get_account_by_iam_id(refresh_result.account.id).await {
         Ok(Some(acc)) => acc,
-        Ok(None) | Err(_) => {
+        Ok(None) => {
             return HttpResponse::NotFound().json(serde_json::json!({
                 "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Database error: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Database error"
             }));
         }
     };
@@ -407,7 +330,7 @@ pub async fn logout(
 }
 
 pub async fn get_me(
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     auth_service: web::Data<Arc<AuthService>>,
     user: AuthenticatedUser,
 ) -> impl Responder {
@@ -423,21 +346,17 @@ pub async fn get_me(
     };
 
     // Get our Account record
-    let account = match sqlx::query_as::<_, Account>(
-        r#"
-        SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
-        FROM app_accounts
-        WHERE iam_account_id = $1
-        "#,
-    )
-    .bind(user.account_id)
-    .fetch_optional(db.get_ref())
-    .await
-    {
+    let account = match db.get_account_by_iam_id(user.account_id).await {
         Ok(Some(acc)) => acc,
-        Ok(None) | Err(_) => {
+        Ok(None) => {
             return HttpResponse::NotFound().json(serde_json::json!({
                 "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Database error: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Database error"
             }));
         }
     };
@@ -485,7 +404,7 @@ pub async fn change_password(
 
 pub async fn delete_account(
     auth_service: web::Data<Arc<AuthService>>,
-    db: web::Data<PgPool>,
+    db: web::Data<DbContext>,
     user: AuthenticatedUser,
     req: web::Json<DeleteAccountRequest>,
 ) -> impl Responder {
@@ -509,16 +428,7 @@ pub async fn delete_account(
     };
 
     // Delete our Account record
-    match sqlx::query(
-        r#"
-        DELETE FROM app_accounts
-        WHERE iam_account_id = $1
-        "#,
-    )
-    .bind(user.account_id)
-    .execute(db.get_ref())
-    .await
-    {
+    match db.delete_account_by_iam_id(user.account_id).await {
         Ok(_) => HttpResponse::Ok().json(serde_json::json!({
             "message": "Account deleted successfully"
         })),

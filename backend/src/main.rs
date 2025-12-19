@@ -1,4 +1,5 @@
 mod auth;
+mod dba;
 mod handlers;
 mod models;
 
@@ -70,35 +71,16 @@ impl EmailSender for DummyEmailSender {
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
-    // Database connection
-    let database_url = env::var("DATABASE_URL")
-        .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/webapp".to_string());
-    
-    log::info!("Connecting to database...");
-    let db_pool = sqlx::PgPool::connect(&database_url)
+    // Initialize database through DBA layer
+    let db_context = dba::initialize_database()
         .await
-        .expect("Failed to connect to database");
-
-    // Set up nano-iam and create its schema FIRST (before our migrations)
-    // This is required because our migrations reference the accounts table from nano-iam
-    let iam_repo = Repo::new(db_pool.clone());
-    
-    // Create nano-iam schema if it doesn't exist
-    log::info!("Initializing nano-iam schema...");
-    if let Err(e) = iam_repo.create_schema().await {
-        log::warn!("Failed to create nano-iam schema (may already exist): {:?}", e);
-    }
-
-    // Run our migrations AFTER nano-iam schema is created
-    // sqlx::migrate! looks for migrations/ relative to Cargo.toml
-    log::info!("Running migrations...");
-    sqlx::migrate!("./migrations")
-        .run(&db_pool)
-        .await
-        .expect("Failed to run migrations");
+        .expect("Failed to initialize database");
     
     let email_sender: Arc<dyn EmailSender> = Arc::new(DummyEmailSender);
-    let lock = LeaseLock::new(db_pool.clone());
+    let lock = LeaseLock::new(db_context.pool().clone());
+    
+    // Create IAM repository for auth service
+    let iam_repo = Repo::new(db_context.pool().clone());
 
     let auth_config = AuthConfig {
         token: TokenConfig {
@@ -136,7 +118,7 @@ async fn main() -> std::io::Result<()> {
         let auth = HttpAuthentication::bearer(auth::validator);
 
         App::new()
-            .app_data(web::Data::new(db_pool.clone()))
+            .app_data(web::Data::new(db_context.clone()))
             .app_data(web::Data::new(auth_service.clone()))
             .wrap(cors)
             .wrap(actix_web::middleware::Logger::default())
