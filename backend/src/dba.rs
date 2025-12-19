@@ -47,17 +47,37 @@ async fn create_pool(config: &DbConfig) -> Result<PgPool, sqlx::Error> {
 async fn init_iam_schema(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
     let iam_repo = Repo::new(pool.clone());
     log::info!("Initializing nano-iam schema...");
-    if let Err(e) = iam_repo.create_schema().await {
+    if let Err(e) = iam_repo.migrate().await {
         log::warn!("Failed to create nano-iam schema (may already exist): {:?}", e);
     }
     Ok(())
 }
 
 /// Run database migrations
-async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::migrate::MigrateError> {
-    log::info!("Running migrations...");
-    // sqlx::migrate! looks for migrations/ relative to Cargo.toml
-    sqlx::migrate!("./migrations").run(pool).await
+/// 
+/// Note: We use Migrator with ignore_missing=true to allow nano-iam migrations (version 1)
+/// to exist in the database without being in our migration set. This is necessary because
+/// both systems share the same _sqlx_migrations table but have separate migration files.
+async fn run_migrations(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
+    use sqlx::migrate::Migrator;
+    use std::path::Path;
+    
+    log::info!("Running backend migrations...");
+    
+    // Create migrator from migrations directory
+    let mut migrator = Migrator::new(Path::new("./migrations"))
+        .await
+        .map_err(|e| format!("Failed to create migrator: {}", e))?;
+    
+    // Ignore missing migrations (like nano-iam's version 1) that were applied by other systems
+    migrator.set_ignore_missing(true);
+    
+    // Run migrations
+    migrator.run(pool)
+        .await
+        .map_err(|e| format!("Failed to run migrations: {}", e))?;
+    
+    Ok(())
 }
 
 /// Initialize database: connect, create schema, and run migrations
@@ -72,9 +92,8 @@ pub async fn initialize_database() -> Result<DbContext, Box<dyn std::error::Erro
     init_iam_schema(&pool).await?;
 
     // Run our migrations AFTER nano-iam schema is created
-    run_migrations(&pool)
-        .await
-        .map_err(|e| format!("Failed to run migrations: {}", e))?;
+    // Backend migrations start at version 100 to avoid conflicts with nano-iam (version 1)
+    run_migrations(&pool).await?;
 
     Ok(DbContext::new(pool))
 }
