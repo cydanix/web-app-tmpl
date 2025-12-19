@@ -58,7 +58,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Refresh access token every 5 minutes
+  // Refresh access token when it's close to expiring
   useEffect(() => {
     // Clear any existing interval
     if (refreshIntervalRef.current) {
@@ -66,13 +66,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       refreshIntervalRef.current = null;
     }
 
-    if (!tokens?.refresh_token) {
+    if (!tokens?.refresh_token || !tokens?.access_token_expires_at) {
       return;
     }
 
     const refreshAccessToken = async () => {
       // Prevent concurrent refresh attempts
       if (isRefreshingRef.current) {
+        return;
+      }
+
+      // Check if token is close to expiring (within 5 minutes)
+      const expiresAt = new Date(tokensRef.current?.access_token_expires_at || 0);
+      const now = new Date();
+      const timeUntilExpiry = expiresAt.getTime() - now.getTime();
+      const fiveMinutes = 5 * 60 * 1000;
+
+      // Only refresh if token expires within 5 minutes
+      if (timeUntilExpiry > fiveMinutes) {
         return;
       }
 
@@ -110,22 +121,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    // Don't refresh immediately on mount - wait for the first interval
-    // This prevents multiple refresh calls when the component mounts/re-renders
-    const interval = setInterval(refreshAccessToken, 5 * 60 * 1000); // 5 minutes
+    // Check every 2 minutes if token needs refreshing
+    // This is much less frequent than before and only refreshes when needed
+    const interval = setInterval(refreshAccessToken, 2 * 60 * 1000); // 2 minutes
     refreshIntervalRef.current = interval;
 
-    // Refresh after a short delay to avoid immediate refresh on mount
-    const timeout = setTimeout(() => {
-      refreshAccessToken();
-    }, 1000); // Wait 1 second before first refresh
+    // Check immediately on mount if token needs refreshing
+    refreshAccessToken();
 
     return () => {
       clearInterval(interval);
-      clearTimeout(timeout);
       refreshIntervalRef.current = null;
     };
-  }, [tokens?.refresh_token]);
+  }, [tokens?.refresh_token, tokens?.access_token_expires_at]);
 
   const refreshUser = async () => {
     const storedTokens = localStorage.getItem("auth_tokens");
