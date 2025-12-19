@@ -29,6 +29,12 @@ export default function Header() {
               About
             </Link>
             <Link 
+              href="/blog" 
+              className={`nav-link ${pathname === "/blog" || pathname?.startsWith("/blog/") ? "fw-semibold text-primary" : ""}`}
+            >
+              Blog
+            </Link>
+            <Link 
               href="/status" 
               className={`nav-link ${pathname === "/status" ? "fw-semibold text-primary" : ""}`}
             >
