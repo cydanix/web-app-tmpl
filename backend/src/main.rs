@@ -71,6 +71,13 @@ impl EmailSender for DummyEmailSender {
 async fn main() -> std::io::Result<()> {
     env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
 
+    // Check if Google OAuth is enabled
+    if let Ok(client_id) = env::var("GOOGLE_OAUTH_CLIENT_ID") {
+        if !client_id.is_empty() {
+            log::info!("Google OAuth enabled with client ID: {}", client_id);
+        }
+    }
+
     // Initialize database through DBA layer
     let db_context = dba::initialize_database()
         .await
@@ -148,6 +155,10 @@ async fn main() -> std::io::Result<()> {
             .route(
                 "/api/auth/refresh",
                 web::post().to(handlers::refresh_token),
+            )
+            .route(
+                "/api/auth/google-oauth-config",
+                web::get().to(handlers::get_google_oauth_config),
             )
             // Protected routes
             .service(

@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
+import GoogleSignInButton from "@/components/google-signin-button";
+import { isGoogleOAuthEnabledFromEnv } from "@/lib/google-oauth";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -11,7 +13,16 @@ export default function SignUpPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const { signup, googleLogin } = useAuth();
+  const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
+  const { signup } = useAuth();
+
+  useEffect(() => {
+    const checkGoogleOAuth = async () => {
+      const enabled = await isGoogleOAuthEnabledFromEnv();
+      setGoogleOAuthEnabled(enabled);
+    };
+    checkGoogleOAuth();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,19 +49,6 @@ export default function SignUpPage() {
     }
   };
 
-  const handleGoogleSignup = async () => {
-    setError("");
-    setLoading(true);
-
-    try {
-      // For now, we'll need to implement Google OAuth on the frontend
-      alert("Google signup integration needed. Please implement Google OAuth.");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Google signup failed");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen d-flex align-items-center bg-light py-5">
@@ -111,42 +109,14 @@ export default function SignUpPage() {
               </Button>
             </Form>
 
-            <div className="text-center mb-3">
-              <span className="text-muted">or</span>
-            </div>
-
-            <Button
-              variant="outline-secondary"
-              className="w-100 mb-3"
-              onClick={handleGoogleSignup}
-              disabled={loading}
-            >
-              <svg
-                className="me-2"
-                width="18"
-                height="18"
-                viewBox="0 0 18 18"
-                fill="none"
-              >
-                <path
-                  d="M17.64 9.2c0-.637-.057-1.251-.163-1.84H9v3.481h4.844c-.209 1.125-.843 2.078-1.796 2.717v2.258h2.908c1.702-1.567 2.684-3.874 2.684-6.616z"
-                  fill="#4285F4"
-                />
-                <path
-                  d="M9 18c2.43 0 4.467-.806 5.96-2.184l-2.908-2.258c-.806.54-1.837.86-3.052.86-2.344 0-4.328-1.584-5.036-3.711H.957v2.332C2.438 15.983 5.482 18 9 18z"
-                  fill="#34A853"
-                />
-                <path
-                  d="M3.964 10.707c-.18-.54-.282-1.117-.282-1.707s.102-1.167.282-1.707V4.951H.957C.348 6.174 0 7.55 0 9s.348 2.826.957 4.049l3.007-2.342z"
-                  fill="#FBBC05"
-                />
-                <path
-                  d="M9 3.58c1.321 0 2.508.454 3.44 1.345l2.582-2.58C13.463.891 11.426 0 9 0 5.482 0 2.438 2.017.957 4.951L3.964 7.293C4.672 5.163 6.656 3.58 9 3.58z"
-                  fill="#EA4335"
-                />
-              </svg>
-              Sign up with Google
-            </Button>
+            {googleOAuthEnabled && (
+              <>
+                <div className="text-center mb-3">
+                  <span className="text-muted">or</span>
+                </div>
+                <GoogleSignInButton variant="signup" className="mb-3" disabled={loading} />
+              </>
+            )}
 
             <div className="text-center">
               <p className="mb-0">

@@ -1,6 +1,7 @@
 use actix_web::{web, HttpResponse, Responder};
 use nano_iam::{AuthService, AuthType, IamError};
 use std::sync::Arc;
+use std::env;
 
 use crate::auth::AuthenticatedUser;
 use crate::dba::DbContext;
@@ -205,9 +206,29 @@ pub async fn google_login(
         .await
     {
         Ok(result) => result,
+        Err(IamError::InvalidOAuthToken) => {
+            return HttpResponse::Unauthorized().json(serde_json::json!({
+                "error": "Invalid Google token"
+            }));
+        }
+        Err(IamError::OAuthEmailNotVerified) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Google account email is not verified"
+            }));
+        }
+        Err(IamError::AuthTypeMismatch) => {
+            return HttpResponse::Conflict().json(serde_json::json!({
+                "error": "This email is already registered with a different authentication method"
+            }));
+        }
         Err(IamError::InvalidCredentials) => {
             return HttpResponse::Unauthorized().json(serde_json::json!({
                 "error": "Invalid Google token"
+            }));
+        }
+        Err(IamError::EmailNotVerified) => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Email not verified"
             }));
         }
         Err(e) => {
@@ -835,4 +856,13 @@ pub async fn update_account_settings(
             }))
         }
     }
+}
+
+pub async fn get_google_oauth_config() -> impl Responder {
+    let client_id = env::var("GOOGLE_OAUTH_CLIENT_ID").unwrap_or_default();
+    
+    HttpResponse::Ok().json(serde_json::json!({
+        "enabled": !client_id.is_empty(),
+        "client_id": if !client_id.is_empty() { Some(client_id) } else { None }
+    }))
 }

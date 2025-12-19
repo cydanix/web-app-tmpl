@@ -10,3 +10,4 @@ export * from "./status";
 export * from "./verify";
 export * from "./notifications";
 export * from "./account-settings";
+export * from "./google-oauth";
