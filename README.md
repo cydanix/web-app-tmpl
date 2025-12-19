@@ -15,8 +15,8 @@ A full-stack web application template with Rust Actix backend and Next.js fronte
 - Bearer token authentication
 
 ### Frontend
-- **Next.js 14** with App Router
-- **React 18** with TypeScript
+- **Next.js 16** with App Router
+- **React 19** with TypeScript
 - **Tailwind CSS** for styling
 - **React Bootstrap** for UI components
 - Authentication context with token management

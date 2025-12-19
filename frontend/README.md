@@ -4,7 +4,7 @@ This is the frontend application built with Next.js, React, TypeScript, Tailwind
 
 ## Features
 
-- Next.js 14 with App Router
+- Next.js 16 with App Router
 - TypeScript for type safety
 - Tailwind CSS for styling
 - React Bootstrap components
