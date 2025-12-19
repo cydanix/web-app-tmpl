@@ -40,12 +40,12 @@ export default function Header() {
             >
               Status
             </Link>
-            <a href="#pricing" className="nav-link">
+            <Link 
+              href="/pricing" 
+              className={`nav-link ${pathname === "/pricing" ? "fw-semibold text-primary" : ""}`}
+            >
               Pricing
-            </a>
-            <a href="#" className="nav-link">
-              Docs
-            </a>
+            </Link>
             <div className="d-flex gap-2 ms-lg-3 mt-3 mt-lg-0">
               <Link href="/signin">
                 <Button variant="outline-primary" size="sm">
