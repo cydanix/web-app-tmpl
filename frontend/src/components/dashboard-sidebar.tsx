@@ -15,10 +15,6 @@ export default function DashboardSidebar() {
 
   return (
     <div className="d-flex flex-column h-100" style={{ minHeight: "100vh" }}>
-      <div className="p-3 border-bottom">
-        <h5 className="mb-0 fw-bold text-primary">WebApp</h5>
-      </div>
-
       <Nav className="flex-column p-3 flex-grow-1">
         <Nav.Link
           href="/dashboard"

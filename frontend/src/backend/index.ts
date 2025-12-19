@@ -9,3 +9,4 @@ export * from "./account";
 export * from "./status";
 export * from "./verify";
 export * from "./notifications";
+export * from "./account-settings";

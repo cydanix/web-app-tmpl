@@ -5,9 +5,10 @@ use std::sync::Arc;
 use crate::auth::AuthenticatedUser;
 use crate::dba::DbContext;
 use crate::models::{
-    AccountInfo, AuthResponse, ChangePasswordRequest, CreateNotificationRequest,
-    DeleteAccountRequest, GoogleLoginRequest, LoginRequest, RefreshTokenRequest,
-    SignupRequest, SignupResponse, UpdateNotificationRequest, VerifyEmailRequest,
+    AccountInfo, AccountSettings, AuthResponse, ChangePasswordRequest,
+    CreateNotificationRequest, DeleteAccountRequest, GoogleLoginRequest, LoginRequest,
+    RefreshTokenRequest, SignupRequest, SignupResponse, UpdateAccountSettingsRequest,
+    UpdateNotificationRequest, VerifyEmailRequest,
 };
 
 pub async fn signup(
@@ -184,6 +185,7 @@ pub async fn login(
             email: login_result.account.email,
             display_name: account.display_name,
             avatar_url: account.avatar_url,
+            username: account.username,
             auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
         },
         access_token: login_result.tokens.access_token.to_string(),
@@ -249,6 +251,7 @@ pub async fn google_login(
             email: login_result.account.email,
             display_name: account.display_name,
             avatar_url: account.avatar_url,
+            username: account.username,
             auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
         },
         access_token: login_result.tokens.access_token.to_string(),
@@ -306,6 +309,7 @@ pub async fn refresh_token(
             email: refresh_result.account.email,
             display_name: account.display_name,
             avatar_url: account.avatar_url,
+            username: account.username,
             auth_type: format!("{:?}", refresh_result.account.auth_type).to_lowercase(),
         },
         access_token: refresh_result.tokens.access_token.to_string(),
@@ -387,6 +391,7 @@ pub async fn get_me(
         email: iam_account.email,
         display_name: account.display_name,
         avatar_url: account.avatar_url,
+        username: account.username,
         auth_type: format!("{:?}", iam_account.auth_type).to_lowercase(),
     })
 }
@@ -748,6 +753,85 @@ pub async fn delete_notifications_batch(
             log::error!("Failed to delete notifications: {:?}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to delete notifications"
+            }))
+        }
+    }
+}
+
+// Account settings handlers
+
+pub async fn get_account_settings(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    HttpResponse::Ok().json(AccountSettings {
+        username: account.username,
+    })
+}
+
+pub async fn update_account_settings(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    req: web::Json<UpdateAccountSettingsRequest>,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    // Validate username if provided
+    if let Some(ref username) = req.username {
+        let trimmed = username.trim();
+        if trimmed.is_empty() {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Username cannot be empty"
+            }));
+        }
+        if trimmed.len() > 255 {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "Username must be 255 characters or less"
+            }));
+        }
+    }
+
+    match db
+        .update_account_settings(account.id, req.username.clone())
+        .await
+    {
+        Ok(updated_account) => HttpResponse::Ok().json(AccountSettings {
+            username: updated_account.username,
+        }),
+        Err(e) => {
+            log::error!("Failed to update account settings: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to update account settings"
             }))
         }
     }

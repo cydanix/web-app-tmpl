@@ -161,7 +161,7 @@ async fn main() -> std::io::Result<()> {
             // Notification routes (all protected)
             .service(
                 web::scope("/api/notifications")
-                    .wrap(auth)
+                    .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_notifications))
                     .route("", web::post().to(handlers::create_notification))
                     .route("/unread-count", web::get().to(handlers::get_unread_count))
@@ -181,6 +181,13 @@ async fn main() -> std::io::Result<()> {
                         "/batch",
                         web::delete().to(handlers::delete_notifications_batch),
                     ),
+            )
+            // Account settings routes
+            .service(
+                web::scope("/api/account/settings")
+                    .wrap(auth.clone())
+                    .route("", web::get().to(handlers::get_account_settings))
+                    .route("", web::put().to(handlers::update_account_settings)),
             )
     })
     .bind(&bind_address)?

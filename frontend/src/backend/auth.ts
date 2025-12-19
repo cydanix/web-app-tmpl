@@ -6,6 +6,7 @@ export interface AccountInfo {
   email: string;
   display_name: string | null;
   avatar_url: string | null;
+  username: string | null;
   auth_type: string;
 }
 

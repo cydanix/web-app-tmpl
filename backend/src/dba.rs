@@ -90,7 +90,7 @@ impl DbContext {
             r#"
             INSERT INTO app_accounts (id, iam_account_id, display_name, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $4)
-            RETURNING id, iam_account_id, display_name, avatar_url, created_at, updated_at
+            RETURNING id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
             "#,
         )
         .bind(Uuid::new_v4())
@@ -108,7 +108,7 @@ impl DbContext {
     ) -> Result<Option<Account>, sqlx::Error> {
         sqlx::query_as::<_, Account>(
             r#"
-            SELECT id, iam_account_id, display_name, avatar_url, created_at, updated_at
+            SELECT id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
             FROM app_accounts
             WHERE iam_account_id = $1
             "#,
@@ -289,5 +289,26 @@ impl DbContext {
         .execute(&self.pool)
         .await?;
         Ok(result.rows_affected())
+    }
+
+    /// Update account settings
+    pub async fn update_account_settings(
+        &self,
+        account_id: Uuid,
+        username: Option<String>,
+    ) -> Result<Account, sqlx::Error> {
+        sqlx::query_as::<_, Account>(
+            r#"
+            UPDATE app_accounts
+            SET username = $1, updated_at = $2
+            WHERE id = $3
+            RETURNING id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
+            "#,
+        )
+        .bind(username)
+        .bind(Utc::now())
+        .bind(account_id)
+        .fetch_one(&self.pool)
+        .await
     }
 }

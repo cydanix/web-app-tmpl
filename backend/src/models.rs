@@ -9,6 +9,7 @@ pub struct Account {
     pub iam_account_id: Uuid,
     pub display_name: Option<String>,
     pub avatar_url: Option<String>,
+    pub username: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -53,6 +54,7 @@ pub struct AccountInfo {
     pub email: String,
     pub display_name: Option<String>,
     pub avatar_url: Option<String>,
+    pub username: Option<String>,
     pub auth_type: String,
 }
 
@@ -98,4 +100,14 @@ pub struct CreateNotificationRequest {
 #[derive(Debug, Deserialize)]
 pub struct UpdateNotificationRequest {
     pub read: bool,
+}
+
+#[derive(Debug, Serialize)]
+pub struct AccountSettings {
+    pub username: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateAccountSettingsRequest {
+    pub username: Option<String>,
 }

@@ -1,21 +1,44 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard-sidebar";
-import AccountSettings from "@/components/account-settings";
+import { getUnreadCount } from "@/backend/notifications";
 
 export default function DashboardPage() {
-  const { user, loading } = useAuth();
+  const { user, tokens, loading } = useAuth();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState<number>(0);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
 
   useEffect(() => {
     if (!loading && !user) {
       router.push("/signin");
     }
   }, [user, loading, router]);
+
+  useEffect(() => {
+    if (user && tokens?.access_token) {
+      loadUnreadCount();
+    }
+  }, [user, tokens]);
+
+  const loadUnreadCount = async () => {
+    if (!tokens?.access_token) return;
+
+    try {
+      setLoadingNotifications(true);
+      const count = await getUnreadCount(tokens.access_token);
+      setUnreadCount(count);
+    } catch (err) {
+      console.error("Failed to load unread count:", err);
+      setUnreadCount(0);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -41,7 +64,7 @@ export default function DashboardPage() {
           <Container className="py-4">
             <div className="mb-4">
               <h1 className="h3 fw-bold mb-1">Dashboard</h1>
-              <p className="text-muted">Welcome back, {user.email}!</p>
+              <p className="text-muted">Welcome back, {user.username || user.email}!</p>
             </div>
 
             <Row className="g-4 mb-4">
@@ -131,22 +154,21 @@ export default function DashboardPage() {
                       </div>
                       <div>
                         <div className="text-muted small">Notifications</div>
-                        <div className="h4 mb-0">0</div>
+                        <div className="h4 mb-0">
+                          {loadingNotifications ? (
+                            <span className="spinner-border spinner-border-sm" role="status">
+                              <span className="visually-hidden">Loading...</span>
+                            </span>
+                          ) : (
+                            unreadCount
+                          )}
+                        </div>
                       </div>
                     </div>
                   </Card.Body>
                 </Card>
               </Col>
             </Row>
-
-            <Card className="border-0 shadow-sm">
-              <Card.Header className="bg-white">
-                <h5 className="mb-0">Account Settings</h5>
-              </Card.Header>
-              <Card.Body>
-                <AccountSettings />
-              </Card.Body>
-            </Card>
           </Container>
         </Col>
       </Row>
