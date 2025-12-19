@@ -3,6 +3,8 @@
 import { Button, Container, Row, Col, Card } from "react-bootstrap";
 import Link from "next/link";
 import Footer from "@/components/footer";
+import PricingPlans from "@/components/pricing-plans";
+import { pricingPlans } from "@/lib/pricing-data";
 
 export default function Home() {
   const features = [
@@ -86,47 +88,6 @@ export default function Home() {
     },
   ];
 
-  const pricingPlans = [
-    {
-      name: "Starter",
-      price: "$29",
-      period: "/month",
-      features: [
-        "Up to 10,000 requests/day",
-        "Basic analytics",
-        "Email support",
-        "99.5% uptime SLA",
-        "1 team member",
-      ],
-      highlighted: false,
-    },
-    {
-      name: "Professional",
-      price: "$99",
-      period: "/month",
-      features: [
-        "Up to 100,000 requests/day",
-        "Advanced analytics",
-        "Priority support",
-        "99.9% uptime SLA",
-        "10 team members",
-      ],
-      highlighted: true,
-    },
-    {
-      name: "Enterprise",
-      price: "Custom",
-      period: "",
-      features: [
-        "Unlimited requests",
-        "Custom analytics",
-        "24/7 phone support",
-        "99.99% uptime SLA",
-        "Unlimited team members",
-      ],
-      highlighted: false,
-    },
-  ];
 
   return (
     <div className="min-h-screen">
@@ -263,45 +224,7 @@ export default function Home() {
               Choose the plan that fits your needs
             </p>
           </div>
-          <Row className="g-4 justify-content-center">
-            {pricingPlans.map((plan, index) => (
-              <Col key={index} lg={4} md={6}>
-                <Card className={`h-100 border-0 shadow-sm ${plan.highlighted ? 'border-3 border-primary shadow-lg' : ''}`}>
-                  {plan.highlighted && (
-                    <div className="bg-primary text-white text-center py-2 small fw-semibold">
-                      MOST POPULAR
-                    </div>
-                  )}
-                  <Card.Body className="p-4 d-flex flex-column">
-                    <h3 className="h4 fw-bold mb-3">{plan.name}</h3>
-                    <div className="mb-4">
-                      <span className="display-4 fw-bold">{plan.price}</span>
-                      <span className="text-muted">{plan.period}</span>
-                    </div>
-                    <ul className="list-unstyled mb-4 flex-grow-1">
-                      {plan.features.map((feature, i) => (
-                        <li key={i} className="mb-3 d-flex align-items-start">
-                          <svg className="w-5 h-5 text-success me-2 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                          </svg>
-                          <span>{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                    <Link href="/signup" className="w-100">
-                      <Button
-                        variant={plan.highlighted ? "primary" : "outline-primary"}
-                        size="lg"
-                        className="w-100"
-                      >
-                        Get Started
-                      </Button>
-                    </Link>
-                  </Card.Body>
-                </Card>
-              </Col>
-            ))}
-          </Row>
+          <PricingPlans plans={pricingPlans} />
         </Container>
       </section>
 
