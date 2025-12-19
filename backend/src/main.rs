@@ -152,11 +152,35 @@ async fn main() -> std::io::Result<()> {
             // Protected routes
             .service(
                 web::scope("/api/auth")
-                    .wrap(auth)
+                    .wrap(auth.clone())
                     .route("/logout", web::post().to(handlers::logout))
                     .route("/me", web::get().to(handlers::get_me))
                     .route("/change-password", web::post().to(handlers::change_password))
                     .route("/delete-account", web::post().to(handlers::delete_account)),
+            )
+            // Notification routes (all protected)
+            .service(
+                web::scope("/api/notifications")
+                    .wrap(auth)
+                    .route("", web::get().to(handlers::get_notifications))
+                    .route("", web::post().to(handlers::create_notification))
+                    .route("/unread-count", web::get().to(handlers::get_unread_count))
+                    .route(
+                        "/{id}",
+                        web::put().to(handlers::update_notification),
+                    )
+                    .route(
+                        "/{id}",
+                        web::delete().to(handlers::delete_notification),
+                    )
+                    .route(
+                        "/batch",
+                        web::put().to(handlers::update_notifications_batch),
+                    )
+                    .route(
+                        "/batch",
+                        web::delete().to(handlers::delete_notifications_batch),
+                    ),
             )
     })
     .bind(&bind_address)?

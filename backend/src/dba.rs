@@ -3,7 +3,7 @@ use std::env;
 use nano_iam::Repo;
 use chrono::Utc;
 use uuid::Uuid;
-use crate::models::Account;
+use crate::models::{Account, Notification};
 
 /// Database connection configuration
 pub struct DbConfig {
@@ -148,5 +148,146 @@ impl DbContext {
         .execute(&self.pool)
         .await?;
         Ok(())
+    }
+
+    /// Create a new notification
+    pub async fn create_notification(
+        &self,
+        account_id: Uuid,
+        level: &str,
+        message: &str,
+    ) -> Result<Notification, sqlx::Error> {
+        sqlx::query_as::<_, Notification>(
+            r#"
+            INSERT INTO notifications (account_id, level, message, read, created_at, updated_at)
+            VALUES ($1, $2, $3, false, $4, $4)
+            RETURNING id, account_id, level, message, read, created_at, updated_at
+            "#,
+        )
+        .bind(account_id)
+        .bind(level)
+        .bind(message)
+        .bind(Utc::now())
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    /// Get all notifications for an account
+    pub async fn get_notifications(
+        &self,
+        account_id: Uuid,
+    ) -> Result<Vec<Notification>, sqlx::Error> {
+        sqlx::query_as::<_, Notification>(
+            r#"
+            SELECT id, account_id, level, message, read, created_at, updated_at
+            FROM notifications
+            WHERE account_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(account_id)
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    /// Get unread notifications count for an account
+    pub async fn get_unread_count(
+        &self,
+        account_id: Uuid,
+    ) -> Result<i64, sqlx::Error> {
+        let result = sqlx::query_scalar::<_, i64>(
+            r#"
+            SELECT COUNT(*) FROM notifications
+            WHERE account_id = $1 AND read = false
+            "#,
+        )
+        .bind(account_id)
+        .fetch_one(&self.pool)
+        .await?;
+        Ok(result)
+    }
+
+    /// Update notification read status
+    pub async fn update_notification_read(
+        &self,
+        notification_id: Uuid,
+        account_id: Uuid,
+        read: bool,
+    ) -> Result<Notification, sqlx::Error> {
+        sqlx::query_as::<_, Notification>(
+            r#"
+            UPDATE notifications
+            SET read = $1, updated_at = $2
+            WHERE id = $3 AND account_id = $4
+            RETURNING id, account_id, level, message, read, created_at, updated_at
+            "#,
+        )
+        .bind(read)
+        .bind(Utc::now())
+        .bind(notification_id)
+        .bind(account_id)
+        .fetch_one(&self.pool)
+        .await
+    }
+
+    /// Mark multiple notifications as read/unread
+    pub async fn update_notifications_read_batch(
+        &self,
+        notification_ids: &[Uuid],
+        account_id: Uuid,
+        read: bool,
+    ) -> Result<Vec<Notification>, sqlx::Error> {
+        sqlx::query_as::<_, Notification>(
+            r#"
+            UPDATE notifications
+            SET read = $1, updated_at = $2
+            WHERE id = ANY($3) AND account_id = $4
+            RETURNING id, account_id, level, message, read, created_at, updated_at
+            "#,
+        )
+        .bind(read)
+        .bind(Utc::now())
+        .bind(notification_ids)
+        .bind(account_id)
+        .fetch_all(&self.pool)
+        .await
+    }
+
+    /// Delete a single notification
+    pub async fn delete_notification(
+        &self,
+        notification_id: Uuid,
+        account_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            r#"
+            DELETE FROM notifications
+            WHERE id = $1 AND account_id = $2
+            "#,
+        )
+        .bind(notification_id)
+        .bind(account_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Delete multiple notifications
+    pub async fn delete_notifications_batch(
+        &self,
+        notification_ids: &[Uuid],
+        account_id: Uuid,
+    ) -> Result<u64, sqlx::Error> {
+        let result = sqlx::query(
+            r#"
+            DELETE FROM notifications
+            WHERE id = ANY($1) AND account_id = $2
+            "#,
+        )
+        .bind(notification_ids)
+        .bind(account_id)
+        .execute(&self.pool)
+        .await?;
+        Ok(result.rows_affected())
     }
 }

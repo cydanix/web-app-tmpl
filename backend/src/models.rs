@@ -77,3 +77,25 @@ pub struct DeleteAccountRequest {
 pub struct RefreshTokenRequest {
     pub refresh_token: String,
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Notification {
+    pub id: Uuid,
+    pub account_id: Uuid,
+    pub level: String,
+    pub message: String,
+    pub read: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct CreateNotificationRequest {
+    pub level: String,
+    pub message: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateNotificationRequest {
+    pub read: bool,
+}

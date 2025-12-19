@@ -5,9 +5,9 @@ use std::sync::Arc;
 use crate::auth::AuthenticatedUser;
 use crate::dba::DbContext;
 use crate::models::{
-    AccountInfo, AuthResponse, ChangePasswordRequest, DeleteAccountRequest,
-    GoogleLoginRequest, LoginRequest, RefreshTokenRequest, SignupRequest, SignupResponse,
-    VerifyEmailRequest,
+    AccountInfo, AuthResponse, ChangePasswordRequest, CreateNotificationRequest,
+    DeleteAccountRequest, GoogleLoginRequest, LoginRequest, RefreshTokenRequest,
+    SignupRequest, SignupResponse, UpdateNotificationRequest, VerifyEmailRequest,
 };
 
 pub async fn signup(
@@ -167,6 +167,16 @@ pub async fn login(
         }
     };
 
+    // Create sign-in notification
+    let notification_message = format!("{} signed in", login_result.account.email);
+    if let Err(e) = db
+        .create_notification(account.id, "info", &notification_message)
+        .await
+    {
+        // Log error but don't fail the login
+        log::warn!("Failed to create sign-in notification: {:?}", e);
+    }
+
     HttpResponse::Ok().json(AuthResponse {
         account: AccountInfo {
             id: account.id,
@@ -221,6 +231,16 @@ pub async fn google_login(
             }));
         }
     };
+
+    // Create sign-in notification
+    let notification_message = format!("{} signed in", login_result.account.email);
+    if let Err(e) = db
+        .create_notification(account.id, "info", &notification_message)
+        .await
+    {
+        // Log error but don't fail the login
+        log::warn!("Failed to create sign-in notification: {:?}", e);
+    }
 
     HttpResponse::Ok().json(AuthResponse {
         account: AccountInfo {
@@ -436,6 +456,298 @@ pub async fn delete_account(
             log::error!("Failed to delete account record: {:?}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
                 "error": "Failed to delete account"
+            }))
+        }
+    }
+}
+
+// Notification handlers
+
+pub async fn create_notification(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    req: web::Json<CreateNotificationRequest>,
+) -> impl Responder {
+    // Validate level
+    if !["info", "warning", "error"].contains(&req.level.as_str()) {
+        return HttpResponse::BadRequest().json(serde_json::json!({
+            "error": "Invalid level. Must be 'info', 'warning', or 'error'"
+        }));
+    }
+
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    // Use authenticated user's account_id (ignore account_id from request for security)
+    match db
+        .create_notification(account.id, &req.level, &req.message)
+        .await
+    {
+        Ok(notification) => HttpResponse::Created().json(notification),
+        Err(e) => {
+            log::error!("Failed to create notification: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to create notification"
+            }))
+        }
+    }
+}
+
+pub async fn get_notifications(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    match db.get_notifications(account.id).await {
+        Ok(notifications) => HttpResponse::Ok().json(notifications),
+        Err(e) => {
+            log::error!("Failed to get notifications: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get notifications"
+            }))
+        }
+    }
+}
+
+pub async fn get_unread_count(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    match db.get_unread_count(account.id).await {
+        Ok(count) => HttpResponse::Ok().json(serde_json::json!({
+            "count": count
+        })),
+        Err(e) => {
+            log::error!("Failed to get unread count: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get unread count"
+            }))
+        }
+    }
+}
+
+pub async fn update_notification(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    notification_id: web::Path<uuid::Uuid>,
+    req: web::Json<UpdateNotificationRequest>,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    match db
+        .update_notification_read(*notification_id, account.id, req.read)
+        .await
+    {
+        Ok(notification) => HttpResponse::Ok().json(notification),
+        Err(sqlx::Error::RowNotFound) => {
+            HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Notification not found"
+            }))
+        }
+        Err(e) => {
+            log::error!("Failed to update notification: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to update notification"
+            }))
+        }
+    }
+}
+
+pub async fn update_notifications_batch(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    req: web::Json<serde_json::Value>,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    let notification_ids: Vec<uuid::Uuid> = match req["notification_ids"].as_array() {
+        Some(arr) => {
+            arr.iter()
+                .filter_map(|v| v.as_str().and_then(|s| uuid::Uuid::parse_str(s).ok()))
+                .collect()
+        }
+        None => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "notification_ids array is required"
+            }));
+        }
+    };
+
+    let read = req["read"]
+        .as_bool()
+        .ok_or_else(|| {
+            HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "read boolean is required"
+            }))
+        })
+        .unwrap();
+
+    match db
+        .update_notifications_read_batch(&notification_ids, account.id, read)
+        .await
+    {
+        Ok(notifications) => HttpResponse::Ok().json(notifications),
+        Err(e) => {
+            log::error!("Failed to update notifications: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to update notifications"
+            }))
+        }
+    }
+}
+
+pub async fn delete_notification(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    notification_id: web::Path<uuid::Uuid>,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    match db.delete_notification(*notification_id, account.id).await {
+        Ok(_) => HttpResponse::Ok().json(serde_json::json!({
+            "message": "Notification deleted successfully"
+        })),
+        Err(e) => {
+            log::error!("Failed to delete notification: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to delete notification"
+            }))
+        }
+    }
+}
+
+pub async fn delete_notifications_batch(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    req: web::Json<serde_json::Value>,
+) -> impl Responder {
+    // Get account by IAM ID
+    let account = match db.get_account_by_iam_id(user.account_id).await {
+        Ok(Some(acc)) => acc,
+        Ok(None) => {
+            return HttpResponse::NotFound().json(serde_json::json!({
+                "error": "Account not found"
+            }));
+        }
+        Err(e) => {
+            log::error!("Failed to get account: {:?}", e);
+            return HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to get account"
+            }));
+        }
+    };
+
+    let notification_ids: Vec<uuid::Uuid> = match req["notification_ids"].as_array() {
+        Some(arr) => {
+            arr.iter()
+                .filter_map(|v| v.as_str().and_then(|s| uuid::Uuid::parse_str(s).ok()))
+                .collect()
+        }
+        None => {
+            return HttpResponse::BadRequest().json(serde_json::json!({
+                "error": "notification_ids array is required"
+            }));
+        }
+    };
+
+    match db
+        .delete_notifications_batch(&notification_ids, account.id)
+        .await
+    {
+        Ok(count) => HttpResponse::Ok().json(serde_json::json!({
+            "message": format!("{} notification(s) deleted successfully", count),
+            "deleted_count": count
+        })),
+        Err(e) => {
+            log::error!("Failed to delete notifications: {:?}", e);
+            HttpResponse::InternalServerError().json(serde_json::json!({
+                "error": "Failed to delete notifications"
             }))
         }
     }
