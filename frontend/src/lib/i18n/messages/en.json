@@ -1,0 +1,182 @@
+{
+  "common": {
+    "home": "Home",
+    "about": "About",
+    "blog": "Blog",
+    "status": "Status",
+    "pricing": "Pricing",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "loading": "Loading...",
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "submit": "Submit",
+    "search": "Search",
+    "filter": "Filter",
+    "language": "Language"
+  },
+  "header": {
+    "title": "WebApp"
+  },
+  "footer": {
+    "title": "WebApp Platform",
+    "description": "Built with Rust Actix-Web and Next.js for maximum performance and developer experience.",
+    "product": "Product",
+    "company": "Company",
+    "account": "Account",
+    "legal": "Legal",
+    "copyright": "© 2025 WebApp Platform. All rights reserved."
+  },
+  "home": {
+    "title": "Build Faster, Scale Better",
+    "subtitle": "The ultimate platform for modern web applications. Powered by Rust and Next.js, delivering unmatched performance and reliability.",
+    "startTrial": "Start Free Trial",
+    "viewStatus": "View Status",
+    "noCreditCard": "No credit card required • 14-day free trial",
+    "features": {
+      "lightningFast": {
+        "title": "Lightning Fast",
+        "description": "Built with Rust and Next.js for maximum performance and speed"
+      },
+      "secure": {
+        "title": "Secure & Reliable",
+        "description": "Enterprise-grade security with 99.9% uptime guarantee"
+      },
+      "realtime": {
+        "title": "Real-time Updates",
+        "description": "Live data synchronization and instant notifications"
+      },
+      "integration": {
+        "title": "Easy Integration",
+        "description": "Simple API and comprehensive documentation for quick setup"
+      },
+      "scalable": {
+        "title": "Scalable Architecture",
+        "description": "Handles millions of requests with horizontal scaling"
+      },
+      "developer": {
+        "title": "Developer Friendly",
+        "description": "Comprehensive docs, SDKs, and excellent developer experience"
+      }
+    },
+    "pricing": {
+      "title": "Simple, Transparent Pricing",
+      "subtitle": "Choose the plan that fits your needs"
+    }
+  },
+  "signin": {
+    "title": "Sign In",
+    "subtitle": "Welcome back! Please sign in to your account.",
+    "email": "Email",
+    "password": "Password",
+    "emailPlaceholder": "Enter your email",
+    "passwordPlaceholder": "Enter your password",
+    "signingIn": "Signing in...",
+    "signIn": "Sign In",
+    "or": "or",
+    "noAccount": "Don't have an account?",
+    "signUp": "Sign up",
+    "emailVerified": "Email verified successfully! You can now sign in."
+  },
+  "signup": {
+    "title": "Sign Up",
+    "subtitle": "Create your account to get started.",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "emailPlaceholder": "Enter your email",
+    "passwordPlaceholder": "Create a password",
+    "confirmPasswordPlaceholder": "Confirm your password",
+    "passwordHint": "Must be at least 8 characters with uppercase, lowercase, digit, and special character.",
+    "creating": "Creating account...",
+    "signUp": "Sign Up",
+    "or": "or",
+    "hasAccount": "Already have an account?",
+    "signIn": "Sign in",
+    "passwordMismatch": "Passwords do not match",
+    "passwordTooShort": "Password must be at least 8 characters long"
+  },
+  "dashboard": {
+    "welcome": "Welcome",
+    "dashboard": "Dashboard",
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "unreadNotifications": "Unread Notifications"
+  },
+  "settings": {
+    "title": "Account Settings",
+    "profileSettings": "Profile Settings",
+    "username": "Username",
+    "usernamePlaceholder": "Enter your username",
+    "usernameHint": "This username will be used in personalized messages (e.g., \"Dear {username}...\")",
+    "saving": "Saving...",
+    "saveChanges": "Save Changes",
+    "signedInAs": "Signed in as",
+    "signOut": "Sign Out"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "No notifications yet.",
+    "markAllRead": "Mark All Read",
+    "markAllUnread": "Mark All Unread",
+    "deleteSelected": "Delete Selected",
+    "selectAll": "Select all",
+    "refresh": "Refresh",
+    "deselectAll": "Deselect All",
+    "read": "Read",
+    "unread": "Unread",
+    "info": "Info",
+    "warning": "Warning",
+    "error": "Error",
+    "justNow": "Just now",
+    "minutesAgo": "{count} minute{plural} ago",
+    "hoursAgo": "{count} hour{plural} ago",
+    "daysAgo": "{count} day{plural} ago",
+    "deleteConfirm": "Are you sure you want to delete {count} notification(s)?",
+    "failedToLoad": "Failed to load notifications",
+    "failedToUpdate": "Failed to update notifications",
+    "failedToDelete": "Failed to delete notification",
+    "failedToDeleteBatch": "Failed to delete notifications"
+  },
+  "pricing": {
+    "title": "Simple, Transparent Pricing",
+    "subtitle": "Choose the plan that fits your needs. All plans include a 14-day free trial.",
+    "noCreditCard": "No credit card required • Cancel anytime • 14-day money-back guarantee",
+    "faq": {
+      "title": "Frequently Asked Questions",
+      "changePlans": {
+        "question": "Can I change plans later?",
+        "answer": "Yes, you can upgrade or downgrade your plan at any time. Changes take effect immediately, and we'll prorate the billing."
+      },
+      "paymentMethods": {
+        "question": "What payment methods do you accept?",
+        "answer": "We accept all major credit cards, debit cards, and PayPal. Enterprise customers can also pay via invoice."
+      },
+      "freeTrial": {
+        "question": "Is there a free trial?",
+        "answer": "Yes! All paid plans include a 14-day free trial. No credit card required to start your trial."
+      },
+      "exceedLimits": {
+        "question": "What happens if I exceed my plan limits?",
+        "answer": "We'll notify you when you're approaching your limits. You can upgrade your plan or purchase additional capacity as needed."
+      },
+      "cancel": {
+        "question": "Can I cancel anytime?",
+        "answer": "Absolutely. You can cancel your subscription at any time with no cancellation fees. Your access continues until the end of your billing period."
+      },
+      "refunds": {
+        "question": "Do you offer refunds?",
+        "answer": "Yes, we offer a 14-day money-back guarantee on all paid plans. If you're not satisfied, contact us for a full refund."
+      }
+    },
+    "cta": {
+      "title": "Still have questions?",
+      "subtitle": "Our team is here to help you choose the right plan for your needs.",
+      "startTrial": "Start Free Trial",
+      "contactSales": "Contact Sales"
+    }
+  }
+}

@@ -6,10 +6,12 @@ import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
 import DashboardSidebar from "@/components/dashboard-sidebar";
 import { getUnreadCount } from "@/backend/notifications";
+import { useI18n } from "@/contexts/i18n-context";
 
 export default function DashboardPage() {
   const { user, tokens, loading } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [unreadCount, setUnreadCount] = useState<number>(0);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
 
@@ -63,8 +65,8 @@ export default function DashboardPage() {
         <Col md={9} lg={10}>
           <Container className="py-4">
             <div className="mb-4">
-              <h1 className="h3 fw-bold mb-1">Dashboard</h1>
-              <p className="text-muted">Welcome back, {user.username || user.email}!</p>
+              <h1 className="h3 fw-bold mb-1">{t("dashboard.dashboard")}</h1>
+              <p className="text-muted">{t("dashboard.welcome")}, {user.username || user.email}!</p>
             </div>
 
             <Row className="g-4 mb-4">
@@ -153,11 +155,11 @@ export default function DashboardPage() {
                         </svg>
                       </div>
                       <div>
-                        <div className="text-muted small">Notifications</div>
+                        <div className="text-muted small">{t("dashboard.unreadNotifications")}</div>
                         <div className="h4 mb-0">
                           {loadingNotifications ? (
                             <span className="spinner-border spinner-border-sm" role="status">
-                              <span className="visually-hidden">Loading...</span>
+                              <span className="visually-hidden">{t("common.loading")}</span>
                             </span>
                           ) : (
                             unreadCount

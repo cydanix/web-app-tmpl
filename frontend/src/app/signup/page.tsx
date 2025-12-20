@@ -6,6 +6,7 @@ import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
 import GoogleSignInButton from "@/components/google-signin-button";
 import { isGoogleOAuthEnabledFromEnv } from "@/lib/google-oauth";
+import { useI18n } from "@/contexts/i18n-context";
 
 export default function SignUpPage() {
   const [email, setEmail] = useState("");
@@ -15,6 +16,7 @@ export default function SignUpPage() {
   const [loading, setLoading] = useState(false);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
   const { signup } = useAuth();
+  const { t } = useI18n();
 
   useEffect(() => {
     const checkGoogleOAuth = async () => {
@@ -29,12 +31,12 @@ export default function SignUpPage() {
     setError("");
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("signup.passwordMismatch"));
       return;
     }
 
     if (password.length < 8) {
-      setError("Password must be at least 8 characters long");
+      setError(t("signup.passwordTooShort"));
       return;
     }
 
@@ -56,18 +58,18 @@ export default function SignUpPage() {
         <Card className="shadow">
           <Card.Body className="p-5">
             <div className="text-center mb-4">
-              <h2 className="fw-bold">Sign Up</h2>
-              <p className="text-muted">Create your account to get started.</p>
+              <h2 className="fw-bold">{t("signup.title")}</h2>
+              <p className="text-muted">{t("signup.subtitle")}</p>
             </div>
 
             {error && <Alert variant="danger">{error}</Alert>}
 
             <Form onSubmit={handleSubmit}>
               <Form.Group className="mb-3">
-                <Form.Label>Email</Form.Label>
+                <Form.Label>{t("signup.email")}</Form.Label>
                 <Form.Control
                   type="email"
-                  placeholder="Enter your email"
+                  placeholder={t("signup.emailPlaceholder")}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -75,24 +77,24 @@ export default function SignUpPage() {
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Password</Form.Label>
+                <Form.Label>{t("signup.password")}</Form.Label>
                 <Form.Control
                   type="password"
-                  placeholder="Create a password"
+                  placeholder={t("signup.passwordPlaceholder")}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
                 />
                 <Form.Text className="text-muted">
-                  Must be at least 8 characters with uppercase, lowercase, digit, and special character.
+                  {t("signup.passwordHint")}
                 </Form.Text>
               </Form.Group>
 
               <Form.Group className="mb-3">
-                <Form.Label>Confirm Password</Form.Label>
+                <Form.Label>{t("signup.confirmPassword")}</Form.Label>
                 <Form.Control
                   type="password"
-                  placeholder="Confirm your password"
+                  placeholder={t("signup.confirmPasswordPlaceholder")}
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
@@ -105,14 +107,14 @@ export default function SignUpPage() {
                 className="w-100 mb-3"
                 disabled={loading}
               >
-                {loading ? "Creating account..." : "Sign Up"}
+                {loading ? t("signup.creating") : t("signup.signUp")}
               </Button>
             </Form>
 
             {googleOAuthEnabled && (
               <>
                 <div className="text-center mb-3">
-                  <span className="text-muted">or</span>
+                  <span className="text-muted">{t("signup.or")}</span>
                 </div>
                 <GoogleSignInButton variant="signup" className="mb-3" disabled={loading} />
               </>
@@ -120,9 +122,9 @@ export default function SignUpPage() {
 
             <div className="text-center">
               <p className="mb-0">
-                Already have an account?{" "}
+                {t("signup.hasAccount")}{" "}
                 <Link href="/signin" className="text-decoration-none">
-                  Sign in
+                  {t("signup.signIn")}
                 </Link>
               </p>
             </div>

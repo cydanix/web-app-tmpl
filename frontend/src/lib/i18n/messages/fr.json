@@ -1,0 +1,182 @@
+{
+  "common": {
+    "home": "Accueil",
+    "about": "À propos",
+    "blog": "Blog",
+    "status": "Statut",
+    "pricing": "Tarifs",
+    "signIn": "Se connecter",
+    "signUp": "S'inscrire",
+    "loading": "Chargement...",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "delete": "Supprimer",
+    "edit": "Modifier",
+    "close": "Fermer",
+    "submit": "Envoyer",
+    "search": "Rechercher",
+    "filter": "Filtrer",
+    "language": "Langue"
+  },
+  "header": {
+    "title": "WebApp"
+  },
+  "footer": {
+    "title": "Plateforme WebApp",
+    "description": "Construit avec Rust Actix-Web et Next.js pour des performances et une expérience développeur maximales.",
+    "product": "Produit",
+    "company": "Entreprise",
+    "account": "Compte",
+    "legal": "Légal",
+    "copyright": "© 2025 Plateforme WebApp. Tous droits réservés."
+  },
+  "home": {
+    "title": "Construisez Plus Vite, Évoluez Mieux",
+    "subtitle": "La plateforme ultime pour les applications web modernes. Propulsée par Rust et Next.js, offrant des performances et une fiabilité inégalées.",
+    "startTrial": "Commencer l'essai gratuit",
+    "viewStatus": "Voir le statut",
+    "noCreditCard": "Aucune carte de crédit requise • Essai gratuit de 14 jours",
+    "features": {
+      "lightningFast": {
+        "title": "Ultra Rapide",
+        "description": "Construit avec Rust et Next.js pour des performances et une vitesse maximales"
+      },
+      "secure": {
+        "title": "Sécurisé et Fiable",
+        "description": "Sécurité de niveau entreprise avec garantie de disponibilité de 99,9%"
+      },
+      "realtime": {
+        "title": "Mises à jour en temps réel",
+        "description": "Synchronisation de données en direct et notifications instantanées"
+      },
+      "integration": {
+        "title": "Intégration facile",
+        "description": "API simple et documentation complète pour une configuration rapide"
+      },
+      "scalable": {
+        "title": "Architecture évolutive",
+        "description": "Gère des millions de requêtes avec mise à l'échelle horizontale"
+      },
+      "developer": {
+        "title": "Convivial pour les développeurs",
+        "description": "Documentation complète, SDK et excellente expérience développeur"
+      }
+    },
+    "pricing": {
+      "title": "Tarification Simple et Transparente",
+      "subtitle": "Choisissez le plan qui correspond à vos besoins"
+    }
+  },
+  "signin": {
+    "title": "Se connecter",
+    "subtitle": "Bon retour ! Veuillez vous connecter à votre compte.",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "emailPlaceholder": "Entrez votre e-mail",
+    "passwordPlaceholder": "Entrez votre mot de passe",
+    "signingIn": "Connexion en cours...",
+    "signIn": "Se connecter",
+    "or": "ou",
+    "noAccount": "Vous n'avez pas de compte ?",
+    "signUp": "S'inscrire",
+    "emailVerified": "E-mail vérifié avec succès ! Vous pouvez maintenant vous connecter."
+  },
+  "signup": {
+    "title": "S'inscrire",
+    "subtitle": "Créez votre compte pour commencer.",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "confirmPassword": "Confirmer le mot de passe",
+    "emailPlaceholder": "Entrez votre e-mail",
+    "passwordPlaceholder": "Créez un mot de passe",
+    "confirmPasswordPlaceholder": "Confirmez votre mot de passe",
+    "passwordHint": "Doit contenir au moins 8 caractères avec majuscules, minuscules, chiffres et caractères spéciaux.",
+    "creating": "Création du compte...",
+    "signUp": "S'inscrire",
+    "or": "ou",
+    "hasAccount": "Vous avez déjà un compte ?",
+    "signIn": "Se connecter",
+    "passwordMismatch": "Les mots de passe ne correspondent pas",
+    "passwordTooShort": "Le mot de passe doit contenir au moins 8 caractères"
+  },
+  "dashboard": {
+    "welcome": "Bienvenue",
+    "dashboard": "Tableau de bord",
+    "settings": "Paramètres",
+    "notifications": "Notifications",
+    "unreadNotifications": "Notifications non lues"
+  },
+  "settings": {
+    "title": "Paramètres du compte",
+    "profileSettings": "Paramètres du profil",
+    "username": "Nom d'utilisateur",
+    "usernamePlaceholder": "Entrez votre nom d'utilisateur",
+    "usernameHint": "Ce nom d'utilisateur sera utilisé dans les messages personnalisés (ex. \"Cher {username}...\")",
+    "saving": "Enregistrement...",
+    "saveChanges": "Enregistrer les modifications",
+    "signedInAs": "Connecté en tant que",
+    "signOut": "Se déconnecter"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "noNotifications": "Aucune notification pour le moment.",
+    "markAllRead": "Tout marquer comme lu",
+    "markAllUnread": "Tout marquer comme non lu",
+    "deleteSelected": "Supprimer la sélection",
+    "selectAll": "Tout sélectionner",
+    "deselectAll": "Tout désélectionner",
+    "read": "Lu",
+    "unread": "Non lu",
+    "info": "Information",
+    "warning": "Avertissement",
+    "error": "Erreur",
+    "justNow": "À l'instant",
+    "minutesAgo": "il y a {count} minute{plural}",
+    "hoursAgo": "il y a {count} heure{plural}",
+    "daysAgo": "il y a {count} jour{plural}",
+    "deleteConfirm": "Êtes-vous sûr de vouloir supprimer {count} notification(s) ?",
+    "failedToLoad": "Échec du chargement des notifications",
+    "failedToUpdate": "Échec de la mise à jour des notifications",
+    "failedToDelete": "Échec de la suppression de la notification",
+    "failedToDeleteBatch": "Échec de la suppression des notifications",
+    "refresh": "Actualiser"
+  },
+  "pricing": {
+    "title": "Tarification Simple et Transparente",
+    "subtitle": "Choisissez le plan qui correspond à vos besoins. Tous les plans incluent un essai gratuit de 14 jours.",
+    "noCreditCard": "Aucune carte de crédit requise • Annulez à tout moment • Garantie de remboursement de 14 jours",
+    "faq": {
+      "title": "Questions fréquemment posées",
+      "changePlans": {
+        "question": "Puis-je changer de plan plus tard ?",
+        "answer": "Oui, vous pouvez mettre à niveau ou réduire votre plan à tout moment. Les modifications prennent effet immédiatement et nous facturerons au prorata."
+      },
+      "paymentMethods": {
+        "question": "Quels modes de paiement acceptez-vous ?",
+        "answer": "Nous acceptons toutes les principales cartes de crédit et de débit, ainsi que PayPal. Les clients entreprise peuvent également payer par facture."
+      },
+      "freeTrial": {
+        "question": "Y a-t-il un essai gratuit ?",
+        "answer": "Oui ! Tous les plans payants incluent un essai gratuit de 14 jours. Aucune carte de crédit requise pour commencer votre essai."
+      },
+      "exceedLimits": {
+        "question": "Que se passe-t-il si je dépasse les limites de mon plan ?",
+        "answer": "Nous vous avertirons lorsque vous approcherez de vos limites. Vous pouvez mettre à niveau votre plan ou acheter de la capacité supplémentaire selon vos besoins."
+      },
+      "cancel": {
+        "question": "Puis-je annuler à tout moment ?",
+        "answer": "Absolument. Vous pouvez annuler votre abonnement à tout moment sans frais d'annulation. Votre accès continue jusqu'à la fin de votre période de facturation."
+      },
+      "refunds": {
+        "question": "Offrez-vous des remboursements ?",
+        "answer": "Oui, nous offrons une garantie de remboursement de 14 jours sur tous les plans payants. Si vous n'êtes pas satisfait, contactez-nous pour un remboursement complet."
+      }
+    },
+    "cta": {
+      "title": "Vous avez encore des questions ?",
+      "subtitle": "Notre équipe est là pour vous aider à choisir le plan adapté à vos besoins.",
+      "startTrial": "Commencer l'essai gratuit",
+      "contactSales": "Contacter les ventes"
+    }
+  }
+}

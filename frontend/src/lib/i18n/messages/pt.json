@@ -1,0 +1,182 @@
+{
+  "common": {
+    "home": "Início",
+    "about": "Sobre",
+    "blog": "Blog",
+    "status": "Status",
+    "pricing": "Preços",
+    "signIn": "Entrar",
+    "signUp": "Cadastrar",
+    "loading": "Carregando...",
+    "save": "Salvar",
+    "cancel": "Cancelar",
+    "delete": "Excluir",
+    "edit": "Editar",
+    "close": "Fechar",
+    "submit": "Enviar",
+    "search": "Buscar",
+    "filter": "Filtrar",
+    "language": "Idioma"
+  },
+  "header": {
+    "title": "WebApp"
+  },
+  "footer": {
+    "title": "Plataforma WebApp",
+    "description": "Construído com Rust Actix-Web e Next.js para máximo desempenho e experiência de desenvolvedor.",
+    "product": "Produto",
+    "company": "Empresa",
+    "account": "Conta",
+    "legal": "Legal",
+    "copyright": "© 2025 Plataforma WebApp. Todos os direitos reservados."
+  },
+  "home": {
+    "title": "Construa Mais Rápido, Escale Melhor",
+    "subtitle": "A plataforma definitiva para aplicações web modernas. Alimentada por Rust e Next.js, oferecendo desempenho e confiabilidade incomparáveis.",
+    "startTrial": "Iniciar Teste Grátis",
+    "viewStatus": "Ver Status",
+    "noCreditCard": "Cartão de crédito não necessário • Teste gratuito de 14 dias",
+    "features": {
+      "lightningFast": {
+        "title": "Super Rápido",
+        "description": "Construído com Rust e Next.js para máximo desempenho e velocidade"
+      },
+      "secure": {
+        "title": "Seguro e Confiável",
+        "description": "Segurança de nível empresarial com garantia de 99,9% de tempo de atividade"
+      },
+      "realtime": {
+        "title": "Atualizações em Tempo Real",
+        "description": "Sincronização de dados ao vivo e notificações instantâneas"
+      },
+      "integration": {
+        "title": "Fácil Integração",
+        "description": "API simples e documentação abrangente para configuração rápida"
+      },
+      "scalable": {
+        "title": "Arquitetura Escalável",
+        "description": "Lida com milhões de solicitações com escalonamento horizontal"
+      },
+      "developer": {
+        "title": "Amigável para Desenvolvedores",
+        "description": "Documentação completa, SDKs e excelente experiência de desenvolvedor"
+      }
+    },
+    "pricing": {
+      "title": "Preços Simples e Transparentes",
+      "subtitle": "Escolha o plano que atende às suas necessidades"
+    }
+  },
+  "signin": {
+    "title": "Entrar",
+    "subtitle": "Bem-vindo de volta! Por favor, faça login na sua conta.",
+    "email": "E-mail",
+    "password": "Senha",
+    "emailPlaceholder": "Digite seu e-mail",
+    "passwordPlaceholder": "Digite sua senha",
+    "signingIn": "Entrando...",
+    "signIn": "Entrar",
+    "or": "ou",
+    "noAccount": "Não tem uma conta?",
+    "signUp": "Cadastrar",
+    "emailVerified": "E-mail verificado com sucesso! Agora você pode fazer login."
+  },
+  "signup": {
+    "title": "Cadastrar",
+    "subtitle": "Crie sua conta para começar.",
+    "email": "E-mail",
+    "password": "Senha",
+    "confirmPassword": "Confirmar Senha",
+    "emailPlaceholder": "Digite seu e-mail",
+    "passwordPlaceholder": "Crie uma senha",
+    "confirmPasswordPlaceholder": "Confirme sua senha",
+    "passwordHint": "Deve ter pelo menos 8 caracteres com maiúsculas, minúsculas, dígitos e caracteres especiais.",
+    "creating": "Criando conta...",
+    "signUp": "Cadastrar",
+    "or": "ou",
+    "hasAccount": "Já tem uma conta?",
+    "signIn": "Entrar",
+    "passwordMismatch": "As senhas não coincidem",
+    "passwordTooShort": "A senha deve ter pelo menos 8 caracteres"
+  },
+  "dashboard": {
+    "welcome": "Bem-vindo",
+    "dashboard": "Painel",
+    "settings": "Configurações",
+    "notifications": "Notificações",
+    "unreadNotifications": "Notificações Não Lidas"
+  },
+  "settings": {
+    "title": "Configurações da Conta",
+    "profileSettings": "Configurações do Perfil",
+    "username": "Nome de Usuário",
+    "usernamePlaceholder": "Digite seu nome de usuário",
+    "usernameHint": "Este nome de usuário será usado em mensagens personalizadas (ex., \"Prezado {username}...\")",
+    "saving": "Salvando...",
+    "saveChanges": "Salvar Alterações",
+    "signedInAs": "Conectado como",
+    "signOut": "Sair"
+  },
+  "notifications": {
+    "title": "Notificações",
+    "noNotifications": "Ainda não há notificações.",
+    "markAllRead": "Marcar Todas como Lidas",
+    "markAllUnread": "Marcar Todas como Não Lidas",
+    "deleteSelected": "Excluir Selecionadas",
+    "selectAll": "Selecionar todas",
+    "deselectAll": "Deselecionar Todas",
+    "read": "Lida",
+    "unread": "Não Lida",
+    "info": "Informação",
+    "warning": "Aviso",
+    "error": "Erro",
+    "justNow": "Agora mesmo",
+    "minutesAgo": "há {count} minuto{plural}",
+    "hoursAgo": "há {count} hora{plural}",
+    "daysAgo": "há {count} dia{plural}",
+    "deleteConfirm": "Tem certeza de que deseja excluir {count} notificação(ões)?",
+    "failedToLoad": "Falha ao carregar notificações",
+    "failedToUpdate": "Falha ao atualizar notificações",
+    "failedToDelete": "Falha ao excluir notificação",
+    "failedToDeleteBatch": "Falha ao excluir notificações",
+    "refresh": "Atualizar"
+  },
+  "pricing": {
+    "title": "Preços Simples e Transparentes",
+    "subtitle": "Escolha o plano que atende às suas necessidades. Todos os planos incluem um teste gratuito de 14 dias.",
+    "noCreditCard": "Cartão de crédito não necessário • Cancele a qualquer momento • Garantia de reembolso de 14 dias",
+    "faq": {
+      "title": "Perguntas Frequentes",
+      "changePlans": {
+        "question": "Posso mudar de plano depois?",
+        "answer": "Sim, você pode atualizar ou reduzir seu plano a qualquer momento. As alterações entram em vigor imediatamente e faremos o rateio da cobrança."
+      },
+      "paymentMethods": {
+        "question": "Quais métodos de pagamento vocês aceitam?",
+        "answer": "Aceitamos todos os principais cartões de crédito e débito, e PayPal. Clientes empresariais também podem pagar via fatura."
+      },
+      "freeTrial": {
+        "question": "Há um teste gratuito?",
+        "answer": "Sim! Todos os planos pagos incluem um teste gratuito de 14 dias. Não é necessário cartão de crédito para iniciar seu teste."
+      },
+      "exceedLimits": {
+        "question": "O que acontece se eu exceder os limites do meu plano?",
+        "answer": "Notificaremos você quando estiver se aproximando de seus limites. Você pode atualizar seu plano ou comprar capacidade adicional conforme necessário."
+      },
+      "cancel": {
+        "question": "Posso cancelar a qualquer momento?",
+        "answer": "Absolutamente. Você pode cancelar sua assinatura a qualquer momento sem taxas de cancelamento. Seu acesso continua até o final do período de cobrança."
+      },
+      "refunds": {
+        "question": "Vocês oferecem reembolsos?",
+        "answer": "Sim, oferecemos uma garantia de reembolso de 14 dias em todos os planos pagos. Se não estiver satisfeito, entre em contato conosco para um reembolso completo."
+      }
+    },
+    "cta": {
+      "title": "Ainda tem dúvidas?",
+      "subtitle": "Nossa equipe está aqui para ajudá-lo a escolher o plano certo para suas necessidades.",
+      "startTrial": "Iniciar Teste Grátis",
+      "contactSales": "Falar com Vendas"
+    }
+  }
+}

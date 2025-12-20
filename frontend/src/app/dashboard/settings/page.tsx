@@ -11,10 +11,12 @@ import {
   getAccountSettings,
   updateAccountSettings,
 } from "@/backend/account-settings";
+import { useI18n } from "@/contexts/i18n-context";
 
 export default function AccountSettingsPage() {
   const { user, tokens, loading } = useAuth();
   const router = useRouter();
+  const { t } = useI18n();
   const [settings, setSettings] = useState<AccountSettingsType | null>(null);
   const [loadingSettings, setLoadingSettings] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -128,15 +130,15 @@ export default function AccountSettingsPage() {
             ) : (
               <Card className="border-0 shadow-sm">
                 <Card.Header className="bg-white">
-                  <h5 className="mb-0">Profile Settings</h5>
+                  <h5 className="mb-0">{t("settings.profileSettings")}</h5>
                 </Card.Header>
                 <Card.Body>
                   <Form onSubmit={handleSubmit}>
                     <Form.Group className="mb-3">
-                      <Form.Label>Username</Form.Label>
+                      <Form.Label>{t("settings.username")}</Form.Label>
                       <Form.Control
                         type="text"
-                        placeholder="Enter your username"
+                        placeholder={t("settings.usernamePlaceholder")}
                         value={formData.username}
                         onChange={(e) =>
                           setFormData({ ...formData, username: e.target.value })
@@ -144,7 +146,7 @@ export default function AccountSettingsPage() {
                         maxLength={255}
                       />
                       <Form.Text className="text-muted">
-                        This username will be used in personalized messages (e.g., &quot;Dear {'{username}'}...&quot;)
+                        {t("settings.usernameHint")}
                       </Form.Text>
                     </Form.Group>
 
@@ -154,7 +156,7 @@ export default function AccountSettingsPage() {
                         variant="primary"
                         disabled={saving}
                       >
-                        {saving ? "Saving..." : "Save Changes"}
+                        {saving ? t("settings.saving") : t("settings.saveChanges")}
                       </Button>
                       <Button
                         type="button"
@@ -162,7 +164,7 @@ export default function AccountSettingsPage() {
                         onClick={loadSettings}
                         disabled={saving || loadingSettings}
                       >
-                        Cancel
+                        {t("common.cancel")}
                       </Button>
                     </div>
                   </Form>

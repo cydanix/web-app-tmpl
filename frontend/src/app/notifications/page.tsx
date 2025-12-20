@@ -13,10 +13,12 @@ import {
   deleteNotification,
   deleteNotificationsBatch,
 } from "@/backend/notifications";
+import { useI18n } from "@/contexts/i18n-context";
 
 export default function NotificationsPage() {
   const { user, tokens, loading } = useAuth();
   const router = useRouter();
+  const { t, locale } = useI18n();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
@@ -43,7 +45,7 @@ export default function NotificationsPage() {
       const data = await getNotifications(tokens.access_token);
       setNotifications(data);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load notifications");
+      setError(err instanceof Error ? err.message : t("notifications.failedToLoad"));
     } finally {
       setLoadingNotifications(false);
     }
@@ -127,7 +129,7 @@ export default function NotificationsPage() {
       await loadNotifications();
       setSelectedIds(new Set());
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete notifications");
+      setError(err instanceof Error ? err.message : t("notifications.failedToDeleteBatch"));
     }
   };
 
@@ -154,16 +156,23 @@ export default function NotificationsPage() {
 
     // Return relative time
     if (diffMins < 1) {
-      return "Just now";
+      return t("notifications.justNow");
     } else if (diffMins < 60) {
-      return `${diffMins} minute${diffMins > 1 ? "s" : ""} ago`;
+      return t("notifications.minutesAgo", { count: diffMins });
     } else if (diffHours < 24) {
-      return `${diffHours} hour${diffHours > 1 ? "s" : ""} ago`;
+      return t("notifications.hoursAgo", { count: diffHours });
     } else if (diffDays < 7) {
-      return `${diffDays} day${diffDays > 1 ? "s" : ""} ago`;
+      return t("notifications.daysAgo", { count: diffDays });
     } else {
       // For older notifications, show date
-      return date.toLocaleDateString("en-US", {
+      const localeMap: Record<string, string> = {
+        'en': 'en-US',
+        'es': 'es-ES',
+        'fr': 'fr-FR',
+        'pt': 'pt-BR',
+        'de': 'de-DE',
+      };
+      return date.toLocaleDateString(localeMap[locale] || 'en-US', {
         year: "numeric",
         month: "short",
         day: "numeric",
@@ -173,14 +182,23 @@ export default function NotificationsPage() {
 
   const formatFullTimestamp = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleString("en-US", {
+    const localeMap: Record<string, string> = {
+      'en': 'en-US',
+      'es': 'es-ES',
+      'fr': 'fr-FR',
+      'pt': 'pt-BR',
+      'de': 'de-DE',
+    };
+    // Use 12-hour format for English and Portuguese, 24-hour for others
+    const use12Hour = locale === 'en' || locale === 'pt';
+    return date.toLocaleString(localeMap[locale] || 'en-US', {
       year: "numeric",
       month: "long",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       second: "2-digit",
-      hour12: true,
+      hour12: use12Hour,
     });
   };
 
@@ -188,7 +206,7 @@ export default function NotificationsPage() {
     return (
       <div className="min-h-screen d-flex align-items-center justify-content-center">
         <div className="spinner-border" role="status">
-          <span className="visually-hidden">Loading...</span>
+          <span className="visually-hidden">{t("common.loading")}</span>
         </div>
       </div>
     );
@@ -211,7 +229,7 @@ export default function NotificationsPage() {
           <Container className="py-4">
             <div className="mb-4 d-flex justify-content-between align-items-center">
               <div>
-                <h1 className="h3 fw-bold mb-1">Notifications</h1>
+                <h1 className="h3 fw-bold mb-1">{t("notifications.title")}</h1>
                 <p className="text-muted mb-0">
                   {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
                 </p>
@@ -223,21 +241,21 @@ export default function NotificationsPage() {
                     size="sm"
                     onClick={() => handleMarkAsRead(true)}
                   >
-                    Mark as Read
+                    {t("notifications.markAllRead")}
                   </Button>
                   <Button
                     variant="outline-secondary"
                     size="sm"
                     onClick={() => handleMarkAsRead(false)}
                   >
-                    Mark as Unread
+                    {t("notifications.markAllUnread")}
                   </Button>
                   <Button
                     variant="outline-danger"
                     size="sm"
                     onClick={handleDeleteBatch}
                   >
-                    Delete Selected
+                    {t("notifications.deleteSelected")}
                   </Button>
                 </div>
               )}
@@ -252,13 +270,13 @@ export default function NotificationsPage() {
             {loadingNotifications ? (
               <div className="text-center py-5">
                 <div className="spinner-border" role="status">
-                  <span className="visually-hidden">Loading...</span>
+                  <span className="visually-hidden">{t("common.loading")}</span>
                 </div>
               </div>
             ) : notifications.length === 0 ? (
               <Card className="border-0 shadow-sm">
                 <Card.Body className="text-center py-5">
-                  <p className="text-muted mb-0">No notifications yet.</p>
+                  <p className="text-muted mb-0">{t("notifications.noNotifications")}</p>
                 </Card.Body>
               </Card>
             ) : (
@@ -266,7 +284,7 @@ export default function NotificationsPage() {
                 <div className="mb-3 d-flex justify-content-between align-items-center">
                   <Form.Check
                     type="checkbox"
-                    label="Select all"
+                    label={t("notifications.selectAll")}
                     checked={selectedIds.size === notifications.length}
                     onChange={handleSelectAll}
                   />
@@ -276,7 +294,7 @@ export default function NotificationsPage() {
                     onClick={loadNotifications}
                     className="text-decoration-none"
                   >
-                    Refresh
+                    {t("notifications.refresh")}
                   </Button>
                 </div>
 
@@ -300,11 +318,14 @@ export default function NotificationsPage() {
                             <div className="d-flex justify-content-between align-items-start mb-2">
                               <div className="d-flex align-items-center gap-2">
                                 <Badge bg={getLevelBadgeVariant(notification.level)}>
-                                  {notification.level.toUpperCase()}
+                                  {notification.level === "info" ? t("notifications.info") :
+                                   notification.level === "warning" ? t("notifications.warning") :
+                                   notification.level === "error" ? t("notifications.error") :
+                                   notification.level.toUpperCase()}
                                 </Badge>
                                 {!notification.read && (
                                   <Badge bg="primary" pill>
-                                    New
+                                    {t("notifications.unread")}
                                   </Badge>
                                 )}
                               </div>
@@ -325,7 +346,7 @@ export default function NotificationsPage() {
                                 className="p-0 text-decoration-none"
                                 onClick={() => handleToggleRead(notification)}
                               >
-                                {notification.read ? "Mark as unread" : "Mark as read"}
+                                {notification.read ? t("notifications.markAllUnread") : t("notifications.markAllRead")}
                               </Button>
                               <span className="text-muted">•</span>
                               <Button
@@ -334,7 +355,7 @@ export default function NotificationsPage() {
                                 className="p-0 text-decoration-none text-danger"
                                 onClick={() => handleDelete(notification.id)}
                               >
-                                Delete
+                                {t("common.delete")}
                               </Button>
                             </div>
                           </div>

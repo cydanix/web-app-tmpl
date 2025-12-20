@@ -146,10 +146,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const account = await getCurrentUser();
       setUser(account);
     } catch (error) {
-      console.error("Failed to refresh user:", error);
-      localStorage.removeItem("auth_tokens");
-      setTokens(null);
-      setUser(null);
+      // Silently handle unauthorized errors (expired/invalid tokens)
+      // This is expected behavior when tokens are no longer valid
+      if (error instanceof Error && error.name === "UnauthorizedError") {
+        // Token is invalid/expired, clear it silently
+        localStorage.removeItem("auth_tokens");
+        setTokens(null);
+        setUser(null);
+      } else {
+        // Log other errors (network issues, etc.)
+        console.error("Failed to refresh user:", error);
+        localStorage.removeItem("auth_tokens");
+        setTokens(null);
+        setUser(null);
+      }
     } finally {
       setLoading(false);
     }

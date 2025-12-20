@@ -167,7 +167,22 @@ export const getCurrentUser = async (): Promise<AccountInfo> => {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to get user information");
+    // If unauthorized, the token is invalid/expired - this is expected
+    if (response.status === 401) {
+      const error = new Error("Unauthorized");
+      error.name = "UnauthorizedError";
+      throw error;
+    }
+    
+    // For other errors, try to get error message from response
+    let errorMessage = "Failed to get user information";
+    try {
+      const errorData = await response.json();
+      errorMessage = errorData.error || errorMessage;
+    } catch {
+      // If response is not JSON, use default message
+    }
+    throw new Error(errorMessage);
   }
 
   return await response.json();

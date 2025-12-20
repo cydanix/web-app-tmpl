@@ -3,6 +3,7 @@ import "./globals.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from "@/components/header";
 import { AuthProvider } from "@/contexts/auth-context";
+import { I18nProvider } from "@/contexts/i18n-context";
 
 export const metadata: Metadata = {
   title: "WebApp Platform - Build Faster, Scale Better",
@@ -17,10 +18,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <AuthProvider>
-          <Header />
-          {children}
-        </AuthProvider>
+        <I18nProvider>
+          <AuthProvider>
+            <Header />
+            {children}
+          </AuthProvider>
+        </I18nProvider>
       </body>
     </html>
   );

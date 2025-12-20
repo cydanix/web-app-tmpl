@@ -1,0 +1,182 @@
+{
+  "common": {
+    "home": "Startseite",
+    "about": "Über uns",
+    "blog": "Blog",
+    "status": "Status",
+    "pricing": "Preise",
+    "signIn": "Anmelden",
+    "signUp": "Registrieren",
+    "loading": "Lädt...",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "Löschen",
+    "edit": "Bearbeiten",
+    "close": "Schließen",
+    "submit": "Senden",
+    "search": "Suchen",
+    "filter": "Filtern",
+    "language": "Sprache"
+  },
+  "header": {
+    "title": "WebApp"
+  },
+  "footer": {
+    "title": "WebApp-Plattform",
+    "description": "Erstellt mit Rust Actix-Web und Next.js für maximale Leistung und Entwicklererfahrung.",
+    "product": "Produkt",
+    "company": "Unternehmen",
+    "account": "Konto",
+    "legal": "Rechtliches",
+    "copyright": "© 2025 WebApp-Plattform. Alle Rechte vorbehalten."
+  },
+  "home": {
+    "title": "Schneller bauen, besser skalieren",
+    "subtitle": "Die ultimative Plattform für moderne Webanwendungen. Angetrieben von Rust und Next.js, bietet unvergleichliche Leistung und Zuverlässigkeit.",
+    "startTrial": "Kostenlose Testversion starten",
+    "viewStatus": "Status anzeigen",
+    "noCreditCard": "Keine Kreditkarte erforderlich • 14-tägige kostenlose Testversion",
+    "features": {
+      "lightningFast": {
+        "title": "Blitzschnell",
+        "description": "Erstellt mit Rust und Next.js für maximale Leistung und Geschwindigkeit"
+      },
+      "secure": {
+        "title": "Sicher und zuverlässig",
+        "description": "Sicherheit auf Unternehmensebene mit 99,9% Verfügbarkeitsgarantie"
+      },
+      "realtime": {
+        "title": "Echtzeit-Updates",
+        "description": "Live-Datensynchronisierung und sofortige Benachrichtigungen"
+      },
+      "integration": {
+        "title": "Einfache Integration",
+        "description": "Einfache API und umfassende Dokumentation für schnelle Einrichtung"
+      },
+      "scalable": {
+        "title": "Skalierbare Architektur",
+        "description": "Verarbeitet Millionen von Anfragen mit horizontaler Skalierung"
+      },
+      "developer": {
+        "title": "Entwicklerfreundlich",
+        "description": "Umfassende Dokumentation, SDKs und hervorragende Entwicklererfahrung"
+      }
+    },
+    "pricing": {
+      "title": "Einfache und transparente Preise",
+      "subtitle": "Wählen Sie den Plan, der Ihren Bedürfnissen entspricht"
+    }
+  },
+  "signin": {
+    "title": "Anmelden",
+    "subtitle": "Willkommen zurück! Bitte melden Sie sich in Ihrem Konto an.",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "emailPlaceholder": "Geben Sie Ihre E-Mail ein",
+    "passwordPlaceholder": "Geben Sie Ihr Passwort ein",
+    "signingIn": "Wird angemeldet...",
+    "signIn": "Anmelden",
+    "or": "oder",
+    "noAccount": "Haben Sie noch kein Konto?",
+    "signUp": "Registrieren",
+    "emailVerified": "E-Mail erfolgreich verifiziert! Sie können sich jetzt anmelden."
+  },
+  "signup": {
+    "title": "Registrieren",
+    "subtitle": "Erstellen Sie Ihr Konto, um zu beginnen.",
+    "email": "E-Mail",
+    "password": "Passwort",
+    "confirmPassword": "Passwort bestätigen",
+    "emailPlaceholder": "Geben Sie Ihre E-Mail ein",
+    "passwordPlaceholder": "Erstellen Sie ein Passwort",
+    "confirmPasswordPlaceholder": "Bestätigen Sie Ihr Passwort",
+    "passwordHint": "Muss mindestens 8 Zeichen mit Großbuchstaben, Kleinbuchstaben, Ziffern und Sonderzeichen enthalten.",
+    "creating": "Konto wird erstellt...",
+    "signUp": "Registrieren",
+    "or": "oder",
+    "hasAccount": "Haben Sie bereits ein Konto?",
+    "signIn": "Anmelden",
+    "passwordMismatch": "Die Passwörter stimmen nicht überein",
+    "passwordTooShort": "Das Passwort muss mindestens 8 Zeichen lang sein"
+  },
+  "dashboard": {
+    "welcome": "Willkommen",
+    "dashboard": "Dashboard",
+    "settings": "Einstellungen",
+    "notifications": "Benachrichtigungen",
+    "unreadNotifications": "Ungelesene Benachrichtigungen"
+  },
+  "settings": {
+    "title": "Kontoeinstellungen",
+    "profileSettings": "Profileinstellungen",
+    "username": "Benutzername",
+    "usernamePlaceholder": "Geben Sie Ihren Benutzernamen ein",
+    "usernameHint": "Dieser Benutzername wird in personalisierten Nachrichten verwendet (z. B. \"Lieber {username}...\")",
+    "saving": "Wird gespeichert...",
+    "saveChanges": "Änderungen speichern",
+    "signedInAs": "Angemeldet als",
+    "signOut": "Abmelden"
+  },
+  "notifications": {
+    "title": "Benachrichtigungen",
+    "noNotifications": "Noch keine Benachrichtigungen.",
+    "markAllRead": "Alle als gelesen markieren",
+    "markAllUnread": "Alle als ungelesen markieren",
+    "deleteSelected": "Ausgewählte löschen",
+    "selectAll": "Alle auswählen",
+    "deselectAll": "Alle abwählen",
+    "read": "Gelesen",
+    "unread": "Ungelesen",
+    "info": "Information",
+    "warning": "Warnung",
+    "error": "Fehler",
+    "justNow": "Gerade eben",
+    "minutesAgo": "vor {count} Minute{plural}",
+    "hoursAgo": "vor {count} Stunde{plural}",
+    "daysAgo": "vor {count} Tag{plural}",
+    "deleteConfirm": "Sind Sie sicher, dass Sie {count} Benachrichtigung(en) löschen möchten?",
+    "failedToLoad": "Fehler beim Laden der Benachrichtigungen",
+    "failedToUpdate": "Fehler beim Aktualisieren der Benachrichtigungen",
+    "failedToDelete": "Fehler beim Löschen der Benachrichtigung",
+    "failedToDeleteBatch": "Fehler beim Löschen der Benachrichtigungen",
+    "refresh": "Aktualisieren"
+  },
+  "pricing": {
+    "title": "Einfache und transparente Preise",
+    "subtitle": "Wählen Sie den Plan, der Ihren Bedürfnissen entspricht. Alle Pläne enthalten eine 14-tägige kostenlose Testversion.",
+    "noCreditCard": "Keine Kreditkarte erforderlich • Jederzeit kündbar • 14-tägige Geld-zurück-Garantie",
+    "faq": {
+      "title": "Häufig gestellte Fragen",
+      "changePlans": {
+        "question": "Kann ich später den Plan wechseln?",
+        "answer": "Ja, Sie können Ihren Plan jederzeit upgraden oder downgraden. Änderungen treten sofort in Kraft und wir berechnen die Abrechnung anteilig."
+      },
+      "paymentMethods": {
+        "question": "Welche Zahlungsmethoden akzeptieren Sie?",
+        "answer": "Wir akzeptieren alle gängigen Kredit- und Debitkarten sowie PayPal. Unternehmenskunden können auch per Rechnung bezahlen."
+      },
+      "freeTrial": {
+        "question": "Gibt es eine kostenlose Testversion?",
+        "answer": "Ja! Alle kostenpflichtigen Pläne enthalten eine 14-tägige kostenlose Testversion. Keine Kreditkarte erforderlich, um Ihre Testversion zu starten."
+      },
+      "exceedLimits": {
+        "question": "Was passiert, wenn ich die Grenzen meines Plans überschreite?",
+        "answer": "Wir benachrichtigen Sie, wenn Sie sich Ihren Grenzen nähern. Sie können Ihren Plan upgraden oder bei Bedarf zusätzliche Kapazität kaufen."
+      },
+      "cancel": {
+        "question": "Kann ich jederzeit kündigen?",
+        "answer": "Absolut. Sie können Ihr Abonnement jederzeit ohne Kündigungsgebühren kündigen. Ihr Zugang bleibt bis zum Ende Ihres Abrechnungszeitraums bestehen."
+      },
+      "refunds": {
+        "question": "Bieten Sie Rückerstattungen an?",
+        "answer": "Ja, wir bieten eine 14-tägige Geld-zurück-Garantie für alle kostenpflichtigen Pläne. Wenn Sie nicht zufrieden sind, kontaktieren Sie uns für eine vollständige Rückerstattung."
+      }
+    },
+    "cta": {
+      "title": "Haben Sie noch Fragen?",
+      "subtitle": "Unser Team ist hier, um Ihnen bei der Auswahl des richtigen Plans für Ihre Bedürfnisse zu helfen.",
+      "startTrial": "Kostenlose Testversion starten",
+      "contactSales": "Vertrieb kontaktieren"
+    }
+  }
+}
