@@ -1,4 +1,6 @@
-import { getApiUrl } from "./config";
+import { api, UnauthorizedError } from "./api-client";
+
+export { UnauthorizedError };
 
 export interface UserInfo {
   id: string;
@@ -37,149 +39,28 @@ export interface RefreshResponse {
   user?: UserInfo;
 }
 
-/**
- * Get authentication headers with access token
- */
-const getAuthHeaders = (): HeadersInit => {
-  const tokens = localStorage.getItem("auth_tokens");
-  if (!tokens) {
-    return { "Content-Type": "application/json" };
-  }
+export const signup = (email: string, password: string): Promise<SignupResponse> =>
+  api.post("/auth/signup", { email, password });
 
-  try {
-    const parsed = JSON.parse(tokens);
-    return {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${parsed.access_token}`,
-    };
-  } catch {
-    return { "Content-Type": "application/json" };
-  }
-};
+export const login = (email: string, password: string): Promise<LoginResponse> =>
+  api.post("/auth/login", { email, password });
 
-/**
- * Sign up a new user
- */
-export const signup = async (email: string, password: string): Promise<SignupResponse> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/auth/signup`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
+export const googleLogin = (idToken: string): Promise<LoginResponse> =>
+  api.post("/auth/google", { id_token: idToken });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Signup failed");
-  }
-
-  return await response.json();
-};
-
-/**
- * Login with email and password
- */
-export const login = async (email: string, password: string): Promise<LoginResponse> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/auth/login`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ email, password }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Login failed");
-  }
-
-  return await response.json();
-};
-
-/**
- * Login with Google ID token
- */
-export const googleLogin = async (idToken: string): Promise<LoginResponse> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/auth/google`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ id_token: idToken }),
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error || "Google login failed");
-  }
-
-  return await response.json();
-};
-
-/**
- * Logout the current user
- */
 export const logout = async (): Promise<void> => {
-  const apiUrl = getApiUrl();
-  const tokens = localStorage.getItem("auth_tokens");
-  
-  if (tokens) {
-    try {
-      const parsed = JSON.parse(tokens);
-      await fetch(`${apiUrl}/auth/logout`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${parsed.access_token}`,
-        },
-        body: JSON.stringify({ access_token: parsed.access_token }),
-      });
-    } catch (error) {
-      console.error("Logout error:", error);
-    }
+  try {
+    const raw = localStorage.getItem("auth_tokens");
+    if (!raw) return;
+    const tokens = JSON.parse(raw);
+    await api.post("/auth/logout", { access_token: tokens.access_token }, { auth: true });
+  } catch {
+    // best-effort
   }
 };
 
-/**
- * Refresh access token using refresh token
- */
-export const refreshToken = async (refreshToken: string): Promise<RefreshResponse> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/auth/refresh`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ refresh_token: refreshToken }),
-  });
+export const refreshToken = (refresh: string): Promise<RefreshResponse> =>
+  api.post("/auth/refresh", { refresh_token: refresh });
 
-  if (!response.ok) {
-    throw new Error("Failed to refresh token");
-  }
-
-  return await response.json();
-};
-
-/**
- * Get current user information
- */
-export const getCurrentUser = async (): Promise<UserInfo> => {
-  const apiUrl = getApiUrl();
-  const response = await fetch(`${apiUrl}/auth/me`, {
-    headers: getAuthHeaders(),
-  });
-
-  if (!response.ok) {
-    if (response.status === 401) {
-      const error = new Error("Unauthorized");
-      error.name = "UnauthorizedError";
-      throw error;
-    }
-
-    let errorMessage = "Failed to get user information";
-    try {
-      const errorData = await response.json();
-      errorMessage = errorData.error || errorMessage;
-    } catch {
-    }
-    throw new Error(errorMessage);
-  }
-
-  return await response.json();
-};
+export const getCurrentUser = (): Promise<UserInfo> =>
+  api.get("/auth/me", { auth: true });

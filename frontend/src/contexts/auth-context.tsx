@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import {
   UserInfo,
   AuthTokens,
+  UnauthorizedError,
   signup as signupApi,
   login as loginApi,
   googleLogin as googleLoginApi,
@@ -145,9 +146,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const account = await getCurrentUser();
       setUser(account);
     } catch (error) {
-      // Silently handle unauthorized errors (expired/invalid tokens)
-      // This is expected behavior when tokens are no longer valid
-      if (error instanceof Error && error.name === "UnauthorizedError") {
+      if (error instanceof UnauthorizedError) {
         // Token is invalid/expired, clear it silently
         localStorage.removeItem("auth_tokens");
         setTokens(null);

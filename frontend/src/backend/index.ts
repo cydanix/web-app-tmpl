@@ -1,8 +1,4 @@
-/**
- * Backend API module
- * Centralized exports for all backend interactions
- */
-
+export * from "./api-client";
 export * from "./config";
 export * from "./auth";
 export * from "./account";

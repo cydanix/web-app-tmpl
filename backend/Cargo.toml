@@ -7,12 +7,14 @@ edition = "2021"
 actix-web = "4.9"
 actix-cors = "0.7"
 actix-web-httpauth = "0.8"
+actix-governor = "0.6"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1", features = ["full"] }
-env_logger = "0.11"
-log = "0.4"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+tracing-actix-web = "0.7"
 sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "migrate"] }
 nano-iam = { path = "../external/nano-iam" }
 uuid = { version = "1", features = ["serde", "v4"] }

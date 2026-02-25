@@ -43,7 +43,7 @@ export default function NotificationsPage() {
       setLoadingNotifications(true);
       setError(null);
       const data = await getNotifications(tokens.access_token);
-      setNotifications(data);
+      setNotifications(data.items);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("notifications.failedToLoad"));
     } finally {
@@ -320,8 +320,7 @@ export default function NotificationsPage() {
                                 <Badge bg={getLevelBadgeVariant(notification.level)}>
                                   {notification.level === "info" ? t("notifications.info") :
                                    notification.level === "warning" ? t("notifications.warning") :
-                                   notification.level === "error" ? t("notifications.error") :
-                                   notification.level.toUpperCase()}
+                                   t("notifications.error")}
                                 </Badge>
                                 {!notification.read && (
                                   <Badge bg="primary" pill>

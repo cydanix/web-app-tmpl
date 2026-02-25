@@ -64,4 +64,3 @@ impl FromRequest for AuthenticatedUser {
         )
     }
 }
-

@@ -79,6 +79,16 @@ pub struct RefreshTokenRequest {
     pub refresh_token: String,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct LogoutRequest {
+    pub access_token: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ResendVerificationRequest {
+    pub email: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Notification {
     pub id: Uuid,
@@ -101,6 +111,17 @@ pub struct UpdateNotificationRequest {
     pub read: bool,
 }
 
+#[derive(Debug, Deserialize)]
+pub struct BatchNotificationIdsRequest {
+    pub notification_ids: Vec<Uuid>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct BatchUpdateNotificationsRequest {
+    pub notification_ids: Vec<Uuid>,
+    pub read: bool,
+}
+
 #[derive(Debug, Serialize)]
 pub struct ProfileSettings {
     pub username: Option<String>,
@@ -115,4 +136,36 @@ pub struct UpdateProfileSettingsRequest {
 pub struct PaginationQuery {
     pub limit: Option<i64>,
     pub offset: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct PaginatedResponse<T: Serialize> {
+    pub items: Vec<T>,
+    pub total: i64,
+    pub limit: i64,
+    pub offset: i64,
+}
+
+#[derive(Debug, Clone, Serialize, FromRow)]
+pub struct AuditLogEntry {
+    pub id: Uuid,
+    pub profile_id: Option<Uuid>,
+    pub action: String,
+    pub resource: String,
+    pub detail: Option<String>,
+    pub ip_address: Option<String>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct BatchDeleteResponse {
+    pub message: String,
+    pub deleted_count: u64,
+}
+
+#[derive(Debug, Serialize)]
+pub struct HealthResponse {
+    pub status: String,
+    pub iam_db: String,
+    pub app_db: String,
 }

@@ -1,20 +1,20 @@
 mod auth;
+mod config;
 mod dba;
+mod errors;
 mod handlers;
 mod models;
 
 use actix_cors::Cors;
+use actix_governor::{Governor, GovernorConfigBuilder};
 use actix_web::{get, web, App, HttpResponse, HttpServer, Responder};
 use actix_web_httpauth::middleware::HttpAuthentication;
-use chrono::{Local, Duration};
-use nano_iam::{
-    AuthConfig, AuthService, EmailVerificationConfig, PasswordPolicy, Repo, TokenConfig,
-};
-use nano_iam::{LeaseLock, IamError};
-use nano_iam::email::EmailSender;
+use chrono::{Duration, Local};
+use nano_iam::{AuthConfig, AuthService, EmailVerificationConfig, IamError, PasswordPolicy, Repo, TokenConfig};
+use nano_iam::{LeaseLock, email::EmailSender};
 use serde::Serialize;
-use std::env;
 use std::sync::Arc;
+use tracing_actix_web::TracingLogger;
 
 #[derive(Serialize)]
 struct StatusResponse {
@@ -26,22 +26,13 @@ struct StatusResponse {
 #[get("/api/status")]
 async fn get_status() -> impl Responder {
     let now = Local::now();
-    let response = StatusResponse {
+    HttpResponse::Ok().json(StatusResponse {
         status: "ok".to_string(),
         server_time: now.to_rfc3339(),
         timestamp: now.timestamp(),
-    };
-    HttpResponse::Ok().json(response)
+    })
 }
 
-#[get("/api/health")]
-async fn health_check() -> impl Responder {
-    HttpResponse::Ok().json(serde_json::json!({
-        "status": "healthy"
-    }))
-}
-
-// Dummy email sender for development
 struct DummyEmailSender;
 
 #[async_trait::async_trait]
@@ -52,7 +43,7 @@ impl EmailSender for DummyEmailSender {
         code: &str,
         _service_name: Option<&str>,
     ) -> Result<(), IamError> {
-        log::info!("[DEV] Verification email to {}: code = {}", to, code);
+        tracing::info!(to = to, "[DEV] Verification email: code = {}", code);
         Ok(())
     }
 
@@ -62,42 +53,64 @@ impl EmailSender for DummyEmailSender {
         code: &str,
         _service_name: Option<&str>,
     ) -> Result<(), IamError> {
-        log::info!("[DEV] Password reset email to {}: code = {}", to, code);
+        tracing::info!(to = to, "[DEV] Password reset email: code = {}", code);
         Ok(())
     }
 }
 
+fn spawn_background_cleanup(db_context: dba::DbContext) {
+    tokio::spawn(async move {
+        let mut interval = tokio::time::interval(std::time::Duration::from_secs(3600));
+        loop {
+            interval.tick().await;
+            match db_context.cleanup_old_notifications(90).await {
+                Ok(n) if n > 0 => tracing::info!(deleted = n, "Cleaned up old notifications"),
+                Err(e) => tracing::warn!("Notification cleanup failed: {:?}", e),
+                _ => {}
+            }
+            match db_context.cleanup_old_audit_logs(365).await {
+                Ok(n) if n > 0 => tracing::info!(deleted = n, "Cleaned up old audit logs"),
+                Err(e) => tracing::warn!("Audit log cleanup failed: {:?}", e),
+                _ => {}
+            }
+        }
+    });
+}
+
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
-    env_logger::init_from_env(env_logger::Env::new().default_filter_or("info"));
+    tracing_subscriber::fmt()
+        .with_env_filter(
+            tracing_subscriber::EnvFilter::try_from_default_env()
+                .unwrap_or_else(|_| tracing_subscriber::EnvFilter::new("info")),
+        )
+        .init();
 
-    // Check if Google OAuth is enabled
-    if let Ok(client_id) = env::var("GOOGLE_OAUTH_CLIENT_ID") {
-        if !client_id.is_empty() {
-            log::info!("Google OAuth enabled");
-        }
+    let app_config = config::AppConfig::from_env();
+
+    if app_config.google_oauth_client_id.is_some() {
+        tracing::info!("Google OAuth enabled");
     }
 
-    // Initialize database through DBA layer
-    let db_context = dba::initialize_database()
+    let db_context = dba::initialize_database(&app_config)
         .await
         .expect("Failed to initialize database");
-    
+
     let email_sender: Arc<dyn EmailSender> = Arc::new(DummyEmailSender);
     let lock = LeaseLock::new(db_context.iam_pool().clone());
     let iam_repo = Repo::new(db_context.iam_pool().clone());
 
     let auth_config = AuthConfig {
         token: TokenConfig {
-            access_ttl: Duration::hours(1),      // 1 hour
-            refresh_ttl: Duration::days(30),     // 30 days
+            access_ttl: Duration::hours(app_config.access_token_ttl_hours),
+            refresh_ttl: Duration::days(app_config.refresh_token_ttl_days),
         },
         email_verification: EmailVerificationConfig {
-            code_ttl: Duration::hours(1), // 1 hour
+            code_ttl: Duration::hours(1),
             code_length: 6,
         },
         password_policy: PasswordPolicy::default(),
-        service_name: Some("WebApp".to_string()),
+        service_name: Some(app_config.service_name.clone()),
     };
 
     let auth_service = Arc::new(AuthService::new(
@@ -107,13 +120,20 @@ async fn main() -> std::io::Result<()> {
         lock,
     ));
 
-    let host = env::var("HOST").unwrap_or_else(|_| "127.0.0.1".to_string());
-    let port = env::var("PORT").unwrap_or_else(|_| "8080".to_string());
-    let bind_address = format!("{}:{}", host, port);
+    let bind_address = app_config.bind_address();
+    tracing::info!("Starting server at http://{}", bind_address);
 
-    log::info!("Starting server at http://{}", bind_address);
+    spawn_background_cleanup(db_context.clone());
 
-    let cors_origin = env::var("CORS_ORIGIN").unwrap_or_default();
+    let cors_origin = app_config.cors_origin.clone();
+
+    let auth_rate_limit = GovernorConfigBuilder::default()
+        .seconds_per_request(2)
+        .burst_size(10)
+        .finish()
+        .expect("Failed to create rate limiter");
+
+    let shared_config = web::Data::new(app_config);
 
     HttpServer::new(move || {
         let cors = if cors_origin.is_empty() {
@@ -138,22 +158,27 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(db_context.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(shared_config.clone())
             .wrap(cors)
-            .wrap(actix_web::middleware::Logger::default())
+            .wrap(TracingLogger::default())
             // Public routes
             .service(get_status)
-            .service(health_check)
-            .route(
-                "/api/auth/signup",
-                web::post().to(handlers::signup),
+            .route("/api/health", web::get().to(handlers::health_check))
+            // Public auth routes — rate-limited individually
+            .service(
+                web::resource("/api/auth/signup")
+                    .wrap(Governor::new(&auth_rate_limit))
+                    .route(web::post().to(handlers::signup)),
             )
-            .route(
-                "/api/auth/login",
-                web::post().to(handlers::login),
+            .service(
+                web::resource("/api/auth/login")
+                    .wrap(Governor::new(&auth_rate_limit))
+                    .route(web::post().to(handlers::login)),
             )
-            .route(
-                "/api/auth/google",
-                web::post().to(handlers::google_login),
+            .service(
+                web::resource("/api/auth/google")
+                    .wrap(Governor::new(&auth_rate_limit))
+                    .route(web::post().to(handlers::google_login)),
             )
             .route(
                 "/api/auth/verify-email",
@@ -171,7 +196,7 @@ async fn main() -> std::io::Result<()> {
                 "/api/auth/google-oauth-config",
                 web::get().to(handlers::get_google_oauth_config),
             )
-            // Protected routes
+            // Protected auth routes
             .service(
                 web::scope("/api/auth")
                     .wrap(auth.clone())
@@ -180,36 +205,30 @@ async fn main() -> std::io::Result<()> {
                     .route("/change-password", web::post().to(handlers::change_password))
                     .route("/delete-account", web::post().to(handlers::delete_account)),
             )
-            // Notification routes (all protected)
+            // Notification routes (protected)
             .service(
                 web::scope("/api/notifications")
                     .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_notifications))
                     .route("", web::post().to(handlers::create_notification))
                     .route("/unread-count", web::get().to(handlers::get_unread_count))
-                    .route(
-                        "/batch",
-                        web::put().to(handlers::update_notifications_batch),
-                    )
-                    .route(
-                        "/batch",
-                        web::delete().to(handlers::delete_notifications_batch),
-                    )
-                    .route(
-                        "/{id}",
-                        web::put().to(handlers::update_notification),
-                    )
-                    .route(
-                        "/{id}",
-                        web::delete().to(handlers::delete_notification),
-                    ),
+                    .route("/batch", web::put().to(handlers::update_notifications_batch))
+                    .route("/batch", web::delete().to(handlers::delete_notifications_batch))
+                    .route("/{id}", web::put().to(handlers::update_notification))
+                    .route("/{id}", web::delete().to(handlers::delete_notification)),
             )
-            // Profile settings routes
+            // Profile settings (protected)
             .service(
                 web::scope("/api/account/settings")
                     .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_profile_settings))
                     .route("", web::put().to(handlers::update_profile_settings)),
+            )
+            // Audit log (protected)
+            .service(
+                web::scope("/api/audit-log")
+                    .wrap(auth.clone())
+                    .route("", web::get().to(handlers::get_audit_log)),
             )
     })
     .bind(&bind_address)?
