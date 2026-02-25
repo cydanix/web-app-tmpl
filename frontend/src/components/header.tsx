@@ -3,11 +3,13 @@
 import { Container, Navbar, Nav, Button } from "react-bootstrap";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAuth } from "@/contexts/auth-context";
 import { useI18n } from "@/contexts/i18n-context";
 import LanguageSwitcher from "@/components/language-switcher";
 
 export default function Header() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const { t } = useI18n();
 
   return (
@@ -51,16 +53,26 @@ export default function Header() {
             </Link>
             <div className="d-flex gap-2 ms-lg-3 mt-3 mt-lg-0 align-items-center">
               <LanguageSwitcher />
-              <Link href="/signin">
-                <Button variant="outline-primary" size="sm">
-                  {t("common.signIn")}
-                </Button>
-              </Link>
-              <Link href="/signup">
-                <Button variant="primary" size="sm">
-                  {t("common.signUp")}
-                </Button>
-              </Link>
+              {user ? (
+                <Link href="/console">
+                  <Button variant="primary" size="sm">
+                    {t("common.console")}
+                  </Button>
+                </Link>
+              ) : (
+                <>
+                  <Link href="/signin">
+                    <Button variant="outline-primary" size="sm">
+                      {t("common.signIn")}
+                    </Button>
+                  </Link>
+                  <Link href="/signup">
+                    <Button variant="primary" size="sm">
+                      {t("common.signUp")}
+                    </Button>
+                  </Link>
+                </>
+              )}
             </div>
           </Nav>
         </Navbar.Collapse>

@@ -7,6 +7,7 @@
     "pricing": "Precios",
     "signIn": "Iniciar Sesión",
     "signUp": "Registrarse",
+    "console": "Consola",
     "loading": "Cargando...",
     "save": "Guardar",
     "cancel": "Cancelar",
@@ -113,9 +114,9 @@
     "passwordMismatch": "Las contraseñas no coinciden",
     "passwordTooShort": "La contraseña debe tener al menos 8 caracteres"
   },
-  "dashboard": {
+  "console": {
     "welcome": "Bienvenido",
-    "dashboard": "Panel de Control",
+    "overview": "Resumen",
     "settings": "Configuración",
     "notifications": "Notificaciones",
     "unreadNotifications": "Notificaciones No Leídas",

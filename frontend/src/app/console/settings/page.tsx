@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Container, Row, Col, Card, Button, Form, Alert } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import DashboardSidebar from "@/components/dashboard-sidebar";
+import ConsoleSidebar from "@/components/console-sidebar";
 import AccountSettings from "@/components/account-settings";
 import {
   AccountSettings as AccountSettingsType,
@@ -100,7 +100,7 @@ export default function AccountSettingsPage() {
     <div className="min-h-screen bg-light">
       <Row className="g-0">
         <Col md={3} lg={2} className="bg-white border-end">
-          <DashboardSidebar />
+          <ConsoleSidebar />
         </Col>
         <Col md={9} lg={10}>
           <Container className="py-4">

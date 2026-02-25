@@ -181,7 +181,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setTokens(tokenData);
     localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
-    router.push("/dashboard");
+    router.push("/console");
   };
 
   const googleLogin = async (idToken: string) => {
@@ -195,7 +195,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
     setTokens(tokenData);
     localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
-    router.push("/dashboard");
+    router.push("/console");
   };
 
   const logout = async () => {

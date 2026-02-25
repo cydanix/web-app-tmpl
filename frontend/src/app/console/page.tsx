@@ -4,11 +4,11 @@ import { useEffect, useState } from "react";
 import { Container, Row, Col, Card } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import DashboardSidebar from "@/components/dashboard-sidebar";
+import ConsoleSidebar from "@/components/console-sidebar";
 import { getUnreadCount } from "@/backend/notifications";
 import { useI18n } from "@/contexts/i18n-context";
 
-export default function DashboardPage() {
+export default function ConsolePage() {
   const { user, tokens, loading } = useAuth();
   const router = useRouter();
   const { t } = useI18n();
@@ -60,13 +60,13 @@ export default function DashboardPage() {
     <div className="min-h-screen bg-light">
       <Row className="g-0">
         <Col md={3} lg={2} className="bg-white border-end">
-          <DashboardSidebar />
+          <ConsoleSidebar />
         </Col>
         <Col md={9} lg={10}>
           <Container className="py-4">
             <div className="mb-4">
-              <h1 className="h3 fw-bold mb-1">{t("dashboard.dashboard")}</h1>
-              <p className="text-muted">{t("dashboard.welcome")}, {user.username || user.email}!</p>
+              <h1 className="h3 fw-bold mb-1">{t("console.overview")}</h1>
+              <p className="text-muted">{t("console.welcome")}, {user.username || user.email}!</p>
             </div>
 
             <Row className="g-4 mb-4">
@@ -155,7 +155,7 @@ export default function DashboardPage() {
                         </svg>
                       </div>
                       <div>
-                        <div className="text-muted small">{t("dashboard.unreadNotifications")}</div>
+                        <div className="text-muted small">{t("console.unreadNotifications")}</div>
                         <div className="h4 mb-0">
                           {loadingNotifications ? (
                             <span className="spinner-border spinner-border-sm" role="status">

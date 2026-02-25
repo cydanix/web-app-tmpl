@@ -44,12 +44,12 @@ A full-stack web application template with Rust Actix backend and Next.js fronte
   - **Sign Up** (/signup) with email verification flow
   - **Sign In** (/signin) with email/password and Google OAuth
   - **Email Verification** (/verify) for account activation
-  - **Dashboard** (/dashboard) - protected user dashboard
+  - **Console** (/console) - protected user console
   - **Status Page** (/status) with auto-refresh (every 5 seconds)
   - **Custom Error Pages** (404 and 500) with user-friendly messaging
 
 - **Additional Features**
-  - Reusable Components (Header, Footer, Dashboard Sidebar, Account Settings)
+  - Reusable Components (Header, Footer, Console Sidebar, Account Settings)
   - Responsive Design with dark mode support
   - RESTful API endpoints
   - CORS enabled for development
@@ -86,8 +86,8 @@ web-app-tmpl/
 │   │   │   │   └── page.tsx     # Sign in page (/signin)
 │   │   │   ├── verify/
 │   │   │   │   └── page.tsx     # Email verification (/verify)
-│   │   │   ├── dashboard/
-│   │   │   │   └── page.tsx     # Dashboard (/dashboard)
+│   │   │   ├── console/
+│   │   │   │   └── page.tsx     # Console (/console)
 │   │   │   ├── status/
 │   │   │   │   └── page.tsx     # Status page (/status)
 │   │   │   ├── not-found.tsx    # 404 error page
@@ -97,7 +97,7 @@ web-app-tmpl/
 │   │   ├── components/      # Reusable components
 │   │   │   ├── header.tsx       # Navigation header
 │   │   │   ├── footer.tsx       # Site footer
-│   │   │   ├── dashboard-sidebar.tsx
+│   │   │   ├── console-sidebar.tsx
 │   │   │   └── account-settings.tsx
 │   │   ├── backend/         # Backend API client
 │   │   │   ├── auth.ts          # Authentication API
@@ -264,7 +264,7 @@ Then open [http://localhost:3000](http://localhost:3000) in your browser.
 - **Sign Up**: http://localhost:3000/signup
 - **Sign In**: http://localhost:3000/signin
 - **Email Verification**: http://localhost:3000/verify
-- **Dashboard**: http://localhost:3000/dashboard (protected, requires authentication)
+- **Console**: http://localhost:3000/console (protected, requires authentication)
 - **Status**: http://localhost:3000/status
 
 ## API Endpoints

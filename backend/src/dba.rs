@@ -141,6 +141,22 @@ impl DbContext {
         self.create_profile(iam_account_id, display_name).await
     }
 
+    pub async fn get_profile_by_id(
+        &self,
+        profile_id: Uuid,
+    ) -> Result<Option<UserProfile>, sqlx::Error> {
+        sqlx::query_as::<_, UserProfile>(
+            r#"
+            SELECT id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
+            FROM user_profiles
+            WHERE id = $1
+            "#,
+        )
+        .bind(profile_id)
+        .fetch_optional(&self.app_pool)
+        .await
+    }
+
     pub async fn delete_profile_by_iam_id(
         &self,
         iam_account_id: Uuid,
@@ -154,6 +170,25 @@ impl DbContext {
         .bind(iam_account_id)
         .execute(&self.app_pool)
         .await?;
+        Ok(())
+    }
+
+    pub async fn delete_profile(
+        &self,
+        profile_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM org_invitations WHERE created_by = $1")
+            .bind(profile_id)
+            .execute(&self.app_pool)
+            .await?;
+        sqlx::query("UPDATE org_invitations SET consumed_by = NULL WHERE consumed_by = $1")
+            .bind(profile_id)
+            .execute(&self.app_pool)
+            .await?;
+        sqlx::query("DELETE FROM user_profiles WHERE id = $1")
+            .bind(profile_id)
+            .execute(&self.app_pool)
+            .await?;
         Ok(())
     }
 
@@ -301,6 +336,7 @@ impl DbContext {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn remove_org_member(
         &self,
         org_id: Uuid,

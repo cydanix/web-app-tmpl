@@ -80,8 +80,8 @@ export default function InvitePage() {
                   You are already signed in as <strong>{user.email}</strong>.
                   Invitation codes can only be used when creating a new account.
                 </p>
-                <Button variant="primary" onClick={() => router.push("/dashboard")}>
-                  Go to Dashboard
+                <Button variant="primary" onClick={() => router.push("/console")}>
+                  Go to Console
                 </Button>
               </div>
             ) : (

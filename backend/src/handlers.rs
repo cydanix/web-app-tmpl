@@ -635,6 +635,7 @@ pub async fn get_invitation_info(
 
 pub async fn remove_member(
     db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
     user: AuthenticatedUser,
     profile_id: web::Path<uuid::Uuid>,
     http_req: HttpRequest,
@@ -645,15 +646,27 @@ pub async fn remove_member(
         return Err(AppError::BadRequest("Cannot remove yourself from the organization".to_string()));
     }
 
-    db.remove_org_member(user.org.id, *profile_id).await?;
+    let target_profile = db.get_profile_by_id(*profile_id).await?
+        .ok_or_else(|| AppError::NotFound("User profile not found".to_string()))?;
 
     let _ = db.write_audit_log(
         Some(user.profile.id), "remove_member", "org",
-        Some(&profile_id.to_string()), client_ip(&http_req).as_deref(),
+        Some(&format!("profile_id={}, iam_id={}", profile_id, target_profile.iam_account_id)),
+        client_ip(&http_req).as_deref(),
         Some(user.org.id),
     ).await;
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member removed successfully" })))
+    let now = chrono::Utc::now();
+    if let Err(e) = iam_repo.revoke_all_tokens(target_profile.iam_account_id, now).await {
+        tracing::error!("Failed to revoke tokens for removed member: {:?}", e);
+    }
+    if let Err(e) = iam_repo.delete_account(target_profile.iam_account_id, now).await {
+        tracing::error!("Failed to soft-delete IAM account for removed member: {:?}", e);
+    }
+
+    db.delete_profile(target_profile.id).await?;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member removed and account deleted" })))
 }
 
 pub async fn update_member_role(

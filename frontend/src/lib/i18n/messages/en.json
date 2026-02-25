@@ -7,6 +7,7 @@
     "pricing": "Pricing",
     "signIn": "Sign In",
     "signUp": "Sign Up",
+    "console": "Console",
     "loading": "Loading...",
     "save": "Save",
     "cancel": "Cancel",
@@ -113,9 +114,9 @@
     "passwordMismatch": "Passwords do not match",
     "passwordTooShort": "Password must be at least 8 characters long"
   },
-  "dashboard": {
+  "console": {
     "welcome": "Welcome",
-    "dashboard": "Dashboard",
+    "overview": "Overview",
     "settings": "Settings",
     "notifications": "Notifications",
     "unreadNotifications": "Unread Notifications",

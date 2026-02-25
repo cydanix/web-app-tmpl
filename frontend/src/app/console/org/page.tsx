@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Container, Row, Col, Card, Table, Button, Form, Modal, Badge, InputGroup } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import { useRouter } from "next/navigation";
-import DashboardSidebar from "@/components/dashboard-sidebar";
+import ConsoleSidebar from "@/components/console-sidebar";
 import {
   getOrg, removeMember, updateMemberRole, createInvitation,
   listInvitations, revokeInvitation,
@@ -147,13 +147,13 @@ export default function OrgPage() {
     <div className="min-h-screen bg-light">
       <Row className="g-0">
         <Col md={3} lg={2} className="bg-white border-end">
-          <DashboardSidebar />
+          <ConsoleSidebar />
         </Col>
         <Col md={9} lg={10}>
           <Container className="py-4">
             <div className="d-flex justify-content-between align-items-center mb-4">
               <div>
-                <h1 className="h3 fw-bold mb-1">{t("dashboard.organization")}</h1>
+                <h1 className="h3 fw-bold mb-1">{t("console.organization")}</h1>
                 {orgData && (
                   <p className="text-muted mb-0">{orgData.org.name}</p>
                 )}
