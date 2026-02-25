@@ -58,8 +58,10 @@ pub async fn signup(
 
     let org_id = if let Some(ref code) = req.invite_code {
         if let Some(invitation) = db.get_invitation_by_code(code).await? {
+            if !db.consume_invitation(invitation.id, profile.id).await? {
+                return Err(AppError::Conflict("Invitation code has already been used".to_string()));
+            }
             db.add_org_member(invitation.org_id, profile.id, invitation.role_id).await?;
-            db.consume_invitation(invitation.id, profile.id).await?;
             invitation.org_id
         } else {
             return Err(AppError::BadRequest("Invalid or expired invitation code".to_string()));
@@ -67,7 +69,10 @@ pub async fn signup(
     } else {
         let slug_base = req.email.split('@').next().unwrap_or("user");
         let slug = db.generate_unique_slug(slug_base).await?;
-        let org_name = format!("{}'s Organization", slug_base);
+        let org_name = req.org_name.as_deref()
+            .filter(|s| !s.trim().is_empty())
+            .map(|s| s.trim().to_string())
+            .unwrap_or_else(|| format!("{}'s Organization", slug_base));
         let org = db.create_organization(&org_name, &slug).await?;
         let admin_role = iam_repo.get_role_by_name("admin").await
             .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?

@@ -379,18 +379,6 @@ impl DbContext {
         let slug = slug.trim_matches('-').to_string();
         let slug = if slug.is_empty() { "org".to_string() } else { slug };
 
-        let existing = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM organizations WHERE slug = $1",
-        )
-        .bind(&slug)
-        .fetch_one(&self.app_pool)
-        .await?;
-
-        if existing == 0 {
-            return Ok(slug);
-        }
-
-        // Append random suffix
         let suffix = &Uuid::new_v4().to_string()[..8];
         Ok(format!("{}-{}", slug, suffix))
     }
@@ -446,16 +434,16 @@ impl DbContext {
         &self,
         invitation_id: Uuid,
         consumed_by: Uuid,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query(
-            "UPDATE org_invitations SET consumed_at = $1, consumed_by = $2 WHERE id = $3",
+    ) -> Result<bool, sqlx::Error> {
+        let result = sqlx::query(
+            "UPDATE org_invitations SET consumed_at = $1, consumed_by = $2 WHERE id = $3 AND consumed_at IS NULL",
         )
         .bind(Utc::now())
         .bind(consumed_by)
         .bind(invitation_id)
         .execute(&self.app_pool)
         .await?;
-        Ok(())
+        Ok(result.rows_affected() > 0)
     }
 
     pub async fn list_invitations(
@@ -488,27 +476,17 @@ impl DbContext {
         Ok(())
     }
 
-    #[allow(dead_code)]
     pub async fn delete_org_if_empty(
         &self,
         org_id: Uuid,
     ) -> Result<bool, sqlx::Error> {
-        let count = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM org_members WHERE org_id = $1",
+        let result = sqlx::query(
+            "DELETE FROM organizations WHERE id = $1 AND NOT EXISTS (SELECT 1 FROM org_members WHERE org_id = $1)",
         )
         .bind(org_id)
-        .fetch_one(&self.app_pool)
+        .execute(&self.app_pool)
         .await?;
-
-        if count == 0 {
-            sqlx::query("DELETE FROM organizations WHERE id = $1")
-                .bind(org_id)
-                .execute(&self.app_pool)
-                .await?;
-            Ok(true)
-        } else {
-            Ok(false)
-        }
+        Ok(result.rows_affected() > 0)
     }
 }
 

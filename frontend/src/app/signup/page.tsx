@@ -15,6 +15,7 @@ export default function SignUpPage() {
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [inviteCode, setInviteCode] = useState(searchParams.get("invite") || "");
+  const [orgName, setOrgName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
@@ -46,7 +47,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      await signup(email, password, inviteCode || undefined);
+      await signup(email, password, inviteCode || undefined, orgName || undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -103,6 +104,22 @@ export default function SignUpPage() {
                   required
                 />
               </Form.Group>
+
+              {!inviteCode && (
+                <Form.Group className="mb-3">
+                  <Form.Label>{t("signup.orgName")}</Form.Label>
+                  <Form.Control
+                    type="text"
+                    placeholder={t("signup.orgNamePlaceholder")}
+                    value={orgName}
+                    onChange={(e) => setOrgName(e.target.value)}
+                    maxLength={255}
+                  />
+                  <Form.Text className="text-muted">
+                    {t("signup.orgNameHint")}
+                  </Form.Text>
+                </Form.Group>
+              )}
 
               <Form.Group className="mb-3">
                 <Form.Label>{t("signup.inviteCode")}</Form.Label>

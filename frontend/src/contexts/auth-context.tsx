@@ -18,7 +18,7 @@ interface AuthContextType {
   user: UserInfo | null;
   tokens: AuthTokens | null;
   loading: boolean;
-  signup: (email: string, password: string, inviteCode?: string) => Promise<void>;
+  signup: (email: string, password: string, inviteCode?: string, orgName?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -165,8 +165,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const signup = async (email: string, password: string, inviteCode?: string) => {
-    const data = await signupApi(email, password, inviteCode || undefined);
+  const signup = async (email: string, password: string, inviteCode?: string, orgName?: string) => {
+    const data = await signupApi(email, password, inviteCode || undefined, orgName || undefined);
     router.push(`/verify?email=${encodeURIComponent(data.email)}&account_id=${data.account_id}`);
   };
 

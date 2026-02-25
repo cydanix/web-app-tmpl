@@ -46,6 +46,7 @@ pub struct SignupRequest {
     pub email: String,
     pub password: String,
     pub invite_code: Option<String>,
+    pub org_name: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
