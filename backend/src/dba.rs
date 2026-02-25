@@ -157,6 +157,7 @@ impl DbContext {
         .await
     }
 
+    #[allow(dead_code)]
     pub async fn delete_profile_by_iam_id(
         &self,
         iam_account_id: Uuid,

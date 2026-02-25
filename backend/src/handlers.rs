@@ -348,15 +348,20 @@ pub async fn delete_account(
         .delete_account(user.account_id, &req.password)
         .await?;
 
+    let org_id = user.org.id;
+    let profile_id = user.profile.id;
+
     let _ = db.write_audit_log(
         None, "delete_account", "auth",
         Some(&user.email), client_ip(&http_req).as_deref(),
-        Some(user.org.id),
+        Some(org_id),
     ).await;
 
-    if let Err(e) = db.delete_profile_by_iam_id(user.account_id).await {
-        tracing::error!("Failed to delete user profile (IAM account already deleted): {:?}", e);
+    if let Err(e) = db.delete_profile(profile_id).await {
+        tracing::error!("Failed to delete user profile after account deletion: {:?}", e);
     }
+
+    let _ = db.delete_org_if_empty(org_id).await;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Account deleted successfully" })))
 }
