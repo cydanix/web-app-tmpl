@@ -120,6 +120,8 @@ async fn main() -> std::io::Result<()> {
         lock,
     ));
 
+    let iam_repo_data = Repo::new(db_context.iam_pool().clone());
+
     let bind_address = app_config.bind_address();
     tracing::info!("Starting server at http://{}", bind_address);
 
@@ -158,6 +160,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .app_data(web::Data::new(db_context.clone()))
             .app_data(web::Data::new(auth_service.clone()))
+            .app_data(web::Data::new(iam_repo_data.clone()))
             .app_data(shared_config.clone())
             .wrap(cors)
             .wrap(TracingLogger::default())
@@ -229,6 +232,15 @@ async fn main() -> std::io::Result<()> {
                 web::scope("/api/audit-log")
                     .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_audit_log)),
+            )
+            // Organization management (protected)
+            .service(
+                web::scope("/api/org")
+                    .wrap(auth.clone())
+                    .route("", web::get().to(handlers::get_org))
+                    .route("/invite", web::post().to(handlers::invite_member))
+                    .route("/members/{profile_id}", web::delete().to(handlers::remove_member))
+                    .route("/members/{profile_id}/role", web::put().to(handlers::update_member_role)),
             )
     })
     .bind(&bind_address)?

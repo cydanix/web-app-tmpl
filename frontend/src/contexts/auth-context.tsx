@@ -23,6 +23,7 @@ interface AuthContextType {
   googleLogin: (idToken: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  hasPermission: (perm: string) => boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -210,6 +211,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     router.push("/");
   };
 
+  const hasPermission = (perm: string): boolean =>
+    user?.permissions?.includes(perm) ?? false;
+
   return (
     <AuthContext.Provider
       value={{
@@ -221,6 +225,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         googleLogin,
         logout,
         refreshUser,
+        hasPermission,
       }}
     >
       {children}

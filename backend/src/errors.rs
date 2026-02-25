@@ -7,6 +7,7 @@ pub enum AppError {
     NotFound(String),
     BadRequest(String),
     Unauthorized(String),
+    Forbidden(String),
     Conflict(String),
     Db(sqlx::Error),
     Iam(IamError),
@@ -19,6 +20,7 @@ impl fmt::Display for AppError {
             AppError::NotFound(msg) => write!(f, "{}", msg),
             AppError::BadRequest(msg) => write!(f, "{}", msg),
             AppError::Unauthorized(msg) => write!(f, "{}", msg),
+            AppError::Forbidden(msg) => write!(f, "{}", msg),
             AppError::Conflict(msg) => write!(f, "{}", msg),
             AppError::Db(e) => write!(f, "Database error: {}", e),
             AppError::Iam(e) => write!(f, "IAM error: {}", e),
@@ -33,6 +35,7 @@ impl ResponseError for AppError {
             AppError::NotFound(msg) => (actix_web::http::StatusCode::NOT_FOUND, msg.clone()),
             AppError::BadRequest(msg) => (actix_web::http::StatusCode::BAD_REQUEST, msg.clone()),
             AppError::Unauthorized(msg) => (actix_web::http::StatusCode::UNAUTHORIZED, msg.clone()),
+            AppError::Forbidden(msg) => (actix_web::http::StatusCode::FORBIDDEN, msg.clone()),
             AppError::Conflict(msg) => (actix_web::http::StatusCode::CONFLICT, msg.clone()),
             AppError::Db(e) => {
                 tracing::error!("Database error: {:?}", e);

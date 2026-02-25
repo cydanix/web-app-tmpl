@@ -115,7 +115,8 @@
     "dashboard": "Dashboard",
     "settings": "Einstellungen",
     "notifications": "Benachrichtigungen",
-    "unreadNotifications": "Ungelesene Benachrichtigungen"
+    "unreadNotifications": "Ungelesene Benachrichtigungen",
+    "organization": "Organisation"
   },
   "settings": {
     "title": "Kontoeinstellungen",

@@ -8,6 +8,7 @@ export interface Notification {
   read: boolean;
   created_at: string;
   updated_at: string;
+  org_id: string | null;
 }
 
 export interface PaginatedNotifications {

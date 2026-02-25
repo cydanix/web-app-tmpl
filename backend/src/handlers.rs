@@ -1,38 +1,34 @@
 use actix_web::{web, HttpRequest, HttpResponse};
-use nano_iam::{AuthService, AuthType, IamError};
+use nano_iam::{AuthService, AuthType, IamError, Repo};
 use std::sync::Arc;
 
-use crate::auth::AuthenticatedUser;
+use crate::auth::{AuthenticatedUser, require_permission};
 use crate::config::AppConfig;
 use crate::dba::DbContext;
 use crate::errors::AppError;
 use crate::models::{
     AuthResponse, BatchDeleteResponse, BatchNotificationIdsRequest,
     BatchUpdateNotificationsRequest, ChangePasswordRequest, CreateNotificationRequest,
-    DeleteAccountRequest, GoogleLoginRequest, HealthResponse, LoginRequest, LogoutRequest,
-    PaginationQuery, ProfileSettings, RefreshTokenRequest, ResendVerificationRequest,
-    SignupRequest, SignupResponse, UpdateNotificationRequest, UpdateProfileSettingsRequest,
-    UserInfo, UserProfile, VerifyEmailRequest,
+    DeleteAccountRequest, GoogleLoginRequest, HealthResponse, InviteMemberRequest, LoginRequest,
+    LogoutRequest, OrgMemberInfo, OrgResponse, PaginationQuery, ProfileSettings,
+    RefreshTokenRequest, ResendVerificationRequest, SignupRequest, SignupResponse,
+    UpdateMemberRoleRequest, UpdateNotificationRequest, UpdateProfileSettingsRequest,
+    UserInfo, VerifyEmailRequest,
 };
 
-fn build_user_info(profile: &UserProfile, iam: &nano_iam::Account) -> UserInfo {
+fn build_user_info(user: &AuthenticatedUser, iam: &nano_iam::Account) -> UserInfo {
     UserInfo {
-        id: profile.id,
+        id: user.profile.id,
         email: iam.email.clone(),
-        display_name: profile.display_name.clone(),
-        avatar_url: profile.avatar_url.clone(),
-        username: profile.username.clone(),
+        display_name: user.profile.display_name.clone(),
+        avatar_url: user.profile.avatar_url.clone(),
+        username: user.profile.username.clone(),
         auth_type: format!("{:?}", iam.auth_type).to_lowercase(),
+        org_id: user.org.id,
+        org_name: user.org.name.clone(),
+        role: user.role_name.clone(),
+        permissions: user.permissions.clone(),
     }
-}
-
-async fn get_profile_or_error(
-    db: &DbContext,
-    user: &AuthenticatedUser,
-) -> Result<UserProfile, AppError> {
-    db.get_profile_by_iam_id(user.account_id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User profile not found".to_string()))
 }
 
 fn client_ip(req: &HttpRequest) -> Option<String> {
@@ -46,6 +42,7 @@ fn client_ip(req: &HttpRequest) -> Option<String> {
 pub async fn signup(
     auth_service: web::Data<Arc<AuthService>>,
     db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
     req: web::Json<SignupRequest>,
     http_req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
@@ -57,11 +54,25 @@ pub async fn signup(
         Err(e) => return Err(e.into()),
     };
 
-    db.create_profile(iam_account.id, iam_account.email.clone()).await?;
+    let profile = db.create_profile(iam_account.id, iam_account.email.clone()).await?;
+
+    // Create a default org for the new user
+    let slug_base = req.email.split('@').next().unwrap_or("user");
+    let slug = db.generate_unique_slug(slug_base).await?;
+    let org_name = format!("{}'s Organization", slug_base);
+    let org = db.create_organization(&org_name, &slug).await?;
+
+    // Get the admin role from IAM
+    let admin_role = iam_repo.get_role_by_name("admin").await
+        .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
+        .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
+
+    db.add_org_member(org.id, profile.id, admin_role.id).await?;
 
     let _ = db.write_audit_log(
-        None, "signup", "auth",
+        Some(profile.id), "signup", "auth",
         Some(&iam_account.email), client_ip(&http_req).as_deref(),
+        Some(org.id),
     ).await;
 
     Ok(HttpResponse::Ok().json(SignupResponse {
@@ -90,6 +101,7 @@ pub async fn resend_verification(
 pub async fn login(
     auth_service: web::Data<Arc<AuthService>>,
     db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
     req: web::Json<LoginRequest>,
     http_req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
@@ -102,18 +114,53 @@ pub async fn login(
         login_result.account.email.clone(),
     ).await?;
 
+    // Ensure user has an org (create one for pre-existing users who lack one)
+    let (org, member) = match db.get_org_for_profile(profile.id).await? {
+        Some(om) => om,
+        None => {
+            let slug_base = login_result.account.email.split('@').next().unwrap_or("user");
+            let slug = db.generate_unique_slug(slug_base).await?;
+            let org_name = format!("{}'s Organization", slug_base);
+            let org = db.create_organization(&org_name, &slug).await?;
+            let admin_role = iam_repo.get_role_by_name("admin").await
+                .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
+                .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
+            let member = db.add_org_member(org.id, profile.id, admin_role.id).await?;
+            (org, member)
+        }
+    };
+
+    let role_name = match iam_repo.get_role_by_id(member.role_id).await {
+        Ok(Some(role)) => role.name,
+        _ => "member".to_string(),
+    };
+
+    let permissions = iam_repo.get_permissions_for_role(member.role_id).await.unwrap_or_default();
+
     let notification_message = format!("{} signed in", login_result.account.email);
-    if let Err(e) = db.create_notification(profile.id, "info", &notification_message).await {
+    if let Err(e) = db.create_notification(profile.id, "info", &notification_message, Some(org.id)).await {
         tracing::warn!("Failed to create sign-in notification: {:?}", e);
     }
 
     let _ = db.write_audit_log(
         Some(profile.id), "login", "auth",
         None, client_ip(&http_req).as_deref(),
+        Some(org.id),
     ).await;
 
     Ok(HttpResponse::Ok().json(AuthResponse {
-        user: build_user_info(&profile, &login_result.account),
+        user: UserInfo {
+            id: profile.id,
+            email: login_result.account.email.clone(),
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            username: profile.username,
+            auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
+            org_id: org.id,
+            org_name: org.name,
+            role: role_name,
+            permissions,
+        },
         access_token: login_result.tokens.access_token.to_string(),
         refresh_token: login_result.tokens.refresh_token.to_string(),
         access_token_expires_at: login_result.tokens.access_token_expires_at,
@@ -124,6 +171,7 @@ pub async fn login(
 pub async fn google_login(
     auth_service: web::Data<Arc<AuthService>>,
     db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
     req: web::Json<GoogleLoginRequest>,
     http_req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
@@ -136,18 +184,53 @@ pub async fn google_login(
         login_result.account.email.clone(),
     ).await?;
 
+    // Ensure user has an org (create one on first Google login)
+    let (org, member) = match db.get_org_for_profile(profile.id).await? {
+        Some(om) => om,
+        None => {
+            let slug_base = login_result.account.email.split('@').next().unwrap_or("user");
+            let slug = db.generate_unique_slug(slug_base).await?;
+            let org_name = format!("{}'s Organization", slug_base);
+            let org = db.create_organization(&org_name, &slug).await?;
+            let admin_role = iam_repo.get_role_by_name("admin").await
+                .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
+                .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
+            let member = db.add_org_member(org.id, profile.id, admin_role.id).await?;
+            (org, member)
+        }
+    };
+
+    let role_name = match iam_repo.get_role_by_id(member.role_id).await {
+        Ok(Some(role)) => role.name,
+        _ => "member".to_string(),
+    };
+
+    let permissions = iam_repo.get_permissions_for_role(member.role_id).await.unwrap_or_default();
+
     let notification_message = format!("{} signed in", login_result.account.email);
-    if let Err(e) = db.create_notification(profile.id, "info", &notification_message).await {
+    if let Err(e) = db.create_notification(profile.id, "info", &notification_message, Some(org.id)).await {
         tracing::warn!("Failed to create sign-in notification: {:?}", e);
     }
 
     let _ = db.write_audit_log(
         Some(profile.id), "google_login", "auth",
         None, client_ip(&http_req).as_deref(),
+        Some(org.id),
     ).await;
 
     Ok(HttpResponse::Ok().json(AuthResponse {
-        user: build_user_info(&profile, &login_result.account),
+        user: UserInfo {
+            id: profile.id,
+            email: login_result.account.email.clone(),
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            username: profile.username,
+            auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
+            org_id: org.id,
+            org_name: org.name,
+            role: role_name,
+            permissions,
+        },
         access_token: login_result.tokens.access_token.to_string(),
         refresh_token: login_result.tokens.refresh_token.to_string(),
         access_token_expires_at: login_result.tokens.access_token_expires_at,
@@ -158,16 +241,51 @@ pub async fn google_login(
 pub async fn refresh_token(
     auth_service: web::Data<Arc<AuthService>>,
     db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
     req: web::Json<RefreshTokenRequest>,
 ) -> Result<HttpResponse, AppError> {
     let refresh_result = auth_service.refresh(&req.refresh_token).await?;
 
-    let profile = db.get_profile_by_iam_id(refresh_result.account.id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User profile not found".to_string()))?;
+    let profile = db.get_or_create_profile(
+        refresh_result.account.id,
+        refresh_result.account.email.clone(),
+    ).await?;
+
+    let (org, member) = match db.get_org_for_profile(profile.id).await? {
+        Some(om) => om,
+        None => {
+            let slug_base = refresh_result.account.email.split('@').next().unwrap_or("user");
+            let slug = db.generate_unique_slug(slug_base).await?;
+            let org_name = format!("{}'s Organization", slug_base);
+            let org = db.create_organization(&org_name, &slug).await?;
+            let admin_role = iam_repo.get_role_by_name("admin").await
+                .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
+                .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
+            let member = db.add_org_member(org.id, profile.id, admin_role.id).await?;
+            (org, member)
+        }
+    };
+
+    let role_name = match iam_repo.get_role_by_id(member.role_id).await {
+        Ok(Some(role)) => role.name,
+        _ => "member".to_string(),
+    };
+
+    let permissions = iam_repo.get_permissions_for_role(member.role_id).await.unwrap_or_default();
 
     Ok(HttpResponse::Ok().json(AuthResponse {
-        user: build_user_info(&profile, &refresh_result.account),
+        user: UserInfo {
+            id: profile.id,
+            email: refresh_result.account.email.clone(),
+            display_name: profile.display_name,
+            avatar_url: profile.avatar_url,
+            username: profile.username,
+            auth_type: format!("{:?}", refresh_result.account.auth_type).to_lowercase(),
+            org_id: org.id,
+            org_name: org.name,
+            role: role_name,
+            permissions,
+        },
         access_token: refresh_result.tokens.access_token.to_string(),
         refresh_token: refresh_result.tokens.refresh_token.to_string(),
         access_token_expires_at: refresh_result.tokens.access_token_expires_at,
@@ -185,13 +303,11 @@ pub async fn logout(
 }
 
 pub async fn get_me(
-    db: web::Data<DbContext>,
     auth_service: web::Data<Arc<AuthService>>,
     user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
     let iam_account = auth_service.get_account(user.account_id).await?;
-    let profile = get_profile_or_error(&db, &user).await?;
-    Ok(HttpResponse::Ok().json(build_user_info(&profile, &iam_account)))
+    Ok(HttpResponse::Ok().json(build_user_info(&user, &iam_account)))
 }
 
 pub async fn change_password(
@@ -205,12 +321,11 @@ pub async fn change_password(
         .change_password(user.account_id, &req.old_password, &req.new_password)
         .await?;
 
-    if let Ok(Some(profile)) = db.get_profile_by_iam_id(user.account_id).await {
-        let _ = db.write_audit_log(
-            Some(profile.id), "change_password", "auth",
-            None, client_ip(&http_req).as_deref(),
-        ).await;
-    }
+    let _ = db.write_audit_log(
+        Some(user.profile.id), "change_password", "auth",
+        None, client_ip(&http_req).as_deref(),
+        Some(user.org.id),
+    ).await;
 
     Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Password changed successfully" })))
 }
@@ -229,6 +344,7 @@ pub async fn delete_account(
     let _ = db.write_audit_log(
         None, "delete_account", "auth",
         Some(&user.email), client_ip(&http_req).as_deref(),
+        Some(user.org.id),
     ).await;
 
     if let Err(e) = db.delete_profile_by_iam_id(user.account_id).await {
@@ -245,14 +361,15 @@ pub async fn create_notification(
     user: AuthenticatedUser,
     req: web::Json<CreateNotificationRequest>,
 ) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "notifications:write")?;
+
     if !["info", "warning", "error"].contains(&req.level.as_str()) {
         return Err(AppError::BadRequest(
             "Invalid level. Must be 'info', 'warning', or 'error'".to_string(),
         ));
     }
 
-    let profile = get_profile_or_error(&db, &user).await?;
-    let notification = db.create_notification(profile.id, &req.level, &req.message).await?;
+    let notification = db.create_notification(user.profile.id, &req.level, &req.message, Some(user.org.id)).await?;
     Ok(HttpResponse::Created().json(notification))
 }
 
@@ -261,10 +378,10 @@ pub async fn get_notifications(
     user: AuthenticatedUser,
     query: web::Query<PaginationQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
+    require_permission(&user, "notifications:read")?;
     let limit = query.limit.unwrap_or(100).min(500);
     let offset = query.offset.unwrap_or(0);
-    let page = db.get_notifications_paginated(profile.id, limit, offset).await?;
+    let page = db.get_notifications_paginated(user.profile.id, user.org.id, limit, offset).await?;
     Ok(HttpResponse::Ok().json(page))
 }
 
@@ -272,8 +389,8 @@ pub async fn get_unread_count(
     db: web::Data<DbContext>,
     user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
-    let count = db.get_unread_count(profile.id).await?;
+    require_permission(&user, "notifications:read")?;
+    let count = db.get_unread_count(user.profile.id, user.org.id).await?;
     Ok(HttpResponse::Ok().json(serde_json::json!({ "count": count })))
 }
 
@@ -283,8 +400,8 @@ pub async fn update_notification(
     notification_id: web::Path<uuid::Uuid>,
     req: web::Json<UpdateNotificationRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
-    let notification = db.update_notification_read(*notification_id, profile.id, req.read).await?;
+    require_permission(&user, "notifications:write")?;
+    let notification = db.update_notification_read(*notification_id, user.profile.id, req.read).await?;
     Ok(HttpResponse::Ok().json(notification))
 }
 
@@ -293,8 +410,8 @@ pub async fn update_notifications_batch(
     user: AuthenticatedUser,
     req: web::Json<BatchUpdateNotificationsRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
-    let notifications = db.update_notifications_read_batch(&req.notification_ids, profile.id, req.read).await?;
+    require_permission(&user, "notifications:write")?;
+    let notifications = db.update_notifications_read_batch(&req.notification_ids, user.profile.id, req.read).await?;
     Ok(HttpResponse::Ok().json(notifications))
 }
 
@@ -303,8 +420,8 @@ pub async fn delete_notification(
     user: AuthenticatedUser,
     notification_id: web::Path<uuid::Uuid>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
-    db.delete_notification(*notification_id, profile.id).await?;
+    require_permission(&user, "notifications:write")?;
+    db.delete_notification(*notification_id, user.profile.id).await?;
     Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Notification deleted successfully" })))
 }
 
@@ -313,8 +430,8 @@ pub async fn delete_notifications_batch(
     user: AuthenticatedUser,
     req: web::Json<BatchNotificationIdsRequest>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
-    let count = db.delete_notifications_batch(&req.notification_ids, profile.id).await?;
+    require_permission(&user, "notifications:write")?;
+    let count = db.delete_notifications_batch(&req.notification_ids, user.profile.id).await?;
     Ok(HttpResponse::Ok().json(BatchDeleteResponse {
         message: format!("{} notification(s) deleted successfully", count),
         deleted_count: count,
@@ -324,12 +441,11 @@ pub async fn delete_notifications_batch(
 // --------------- Profile settings ---------------
 
 pub async fn get_profile_settings(
-    db: web::Data<DbContext>,
     user: AuthenticatedUser,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
+    require_permission(&user, "settings:read")?;
     Ok(HttpResponse::Ok().json(ProfileSettings {
-        username: profile.username,
+        username: user.profile.username.clone(),
     }))
 }
 
@@ -339,7 +455,7 @@ pub async fn update_profile_settings(
     req: web::Json<UpdateProfileSettingsRequest>,
     http_req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
+    require_permission(&user, "settings:write")?;
 
     if let Some(ref username) = req.username {
         let trimmed = username.trim();
@@ -351,11 +467,12 @@ pub async fn update_profile_settings(
         }
     }
 
-    let updated = db.update_profile_settings(profile.id, req.username.clone()).await?;
+    let updated = db.update_profile_settings(user.profile.id, req.username.clone()).await?;
 
     let _ = db.write_audit_log(
-        Some(profile.id), "update_settings", "profile",
+        Some(user.profile.id), "update_settings", "profile",
         None, client_ip(&http_req).as_deref(),
+        Some(user.org.id),
     ).await;
 
     Ok(HttpResponse::Ok().json(ProfileSettings {
@@ -370,11 +487,141 @@ pub async fn get_audit_log(
     user: AuthenticatedUser,
     query: web::Query<PaginationQuery>,
 ) -> Result<HttpResponse, AppError> {
-    let profile = get_profile_or_error(&db, &user).await?;
+    require_permission(&user, "audit_log:read")?;
     let limit = query.limit.unwrap_or(50).min(200);
     let offset = query.offset.unwrap_or(0);
-    let page = db.get_audit_log(profile.id, limit, offset).await?;
+    let page = db.get_audit_log(user.profile.id, user.org.id, limit, offset).await?;
     Ok(HttpResponse::Ok().json(page))
+}
+
+// --------------- Organization management ---------------
+
+pub async fn get_org(
+    db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
+    user: AuthenticatedUser,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:read")?;
+
+    let members_with_profiles = db.get_org_members_with_profiles(user.org.id).await?;
+
+    let mut member_infos = Vec::new();
+    for (member, profile) in members_with_profiles {
+        let role_name = match iam_repo.get_role_by_id(member.role_id).await {
+            Ok(Some(role)) => role.name,
+            _ => "member".to_string(),
+        };
+
+        let email = match iam_repo.find_account_by_id(profile.iam_account_id).await {
+            Ok(Some(acc)) => acc.email,
+            _ => profile.display_name.clone().unwrap_or_default(),
+        };
+
+        member_infos.push(OrgMemberInfo {
+            profile_id: profile.id,
+            email,
+            display_name: profile.display_name,
+            username: profile.username,
+            role: role_name,
+            joined_at: member.joined_at,
+        });
+    }
+
+    Ok(HttpResponse::Ok().json(OrgResponse {
+        org: user.org.clone(),
+        members: member_infos,
+    }))
+}
+
+pub async fn invite_member(
+    db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
+    user: AuthenticatedUser,
+    req: web::Json<InviteMemberRequest>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:invite")?;
+
+    let role = iam_repo.get_role_by_name(&req.role).await
+        .map_err(|_| AppError::Internal("Failed to look up role".to_string()))?
+        .ok_or_else(|| AppError::BadRequest(format!("Invalid role: {}", req.role)))?;
+
+    // Find the target account by email via IAM repo
+    let iam_account = iam_repo.find_account_by_email(&req.email).await
+        .map_err(|_| AppError::Internal("Failed to look up account".to_string()))?
+        .ok_or_else(|| AppError::NotFound("No account found with that email".to_string()))?;
+
+    let profile = db.get_profile_by_iam_id(iam_account.id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User profile not found for that email".to_string()))?;
+
+    // Check they're not already a member of this org
+    if let Some(_) = db.get_org_for_profile(profile.id).await? {
+        return Err(AppError::Conflict("User already belongs to an organization".to_string()));
+    }
+
+    db.add_org_member(user.org.id, profile.id, role.id).await?;
+
+    let _ = db.write_audit_log(
+        Some(user.profile.id), "invite_member", "org",
+        Some(&req.email), client_ip(&http_req).as_deref(),
+        Some(user.org.id),
+    ).await;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member invited successfully" })))
+}
+
+pub async fn remove_member(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    profile_id: web::Path<uuid::Uuid>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:remove")?;
+
+    if *profile_id == user.profile.id {
+        return Err(AppError::BadRequest("Cannot remove yourself from the organization".to_string()));
+    }
+
+    db.remove_org_member(user.org.id, *profile_id).await?;
+
+    let _ = db.write_audit_log(
+        Some(user.profile.id), "remove_member", "org",
+        Some(&profile_id.to_string()), client_ip(&http_req).as_deref(),
+        Some(user.org.id),
+    ).await;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member removed successfully" })))
+}
+
+pub async fn update_member_role(
+    db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
+    user: AuthenticatedUser,
+    profile_id: web::Path<uuid::Uuid>,
+    req: web::Json<UpdateMemberRoleRequest>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:remove")?;
+
+    if *profile_id == user.profile.id {
+        return Err(AppError::BadRequest("Cannot change your own role".to_string()));
+    }
+
+    let role = iam_repo.get_role_by_name(&req.role).await
+        .map_err(|_| AppError::Internal("Failed to look up role".to_string()))?
+        .ok_or_else(|| AppError::BadRequest(format!("Invalid role: {}", req.role)))?;
+
+    db.update_member_role(user.org.id, *profile_id, role.id).await?;
+
+    let _ = db.write_audit_log(
+        Some(user.profile.id), "update_member_role", "org",
+        Some(&format!("{} -> {}", profile_id, req.role)),
+        client_ip(&http_req).as_deref(),
+        Some(user.org.id),
+    ).await;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member role updated successfully" })))
 }
 
 // --------------- Config / Health ---------------

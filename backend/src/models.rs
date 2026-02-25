@@ -14,6 +14,33 @@ pub struct UserProfile {
     pub updated_at: DateTime<Utc>,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct Organization {
+    pub id: Uuid,
+    pub name: String,
+    pub slug: String,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct OrgMember {
+    pub org_id: Uuid,
+    pub profile_id: Uuid,
+    pub role_id: Uuid,
+    pub joined_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+pub struct OrgMemberInfo {
+    pub profile_id: Uuid,
+    pub email: String,
+    pub display_name: Option<String>,
+    pub username: Option<String>,
+    pub role: String,
+    pub joined_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Deserialize)]
 pub struct SignupRequest {
     pub email: String,
@@ -55,6 +82,10 @@ pub struct UserInfo {
     pub avatar_url: Option<String>,
     pub username: Option<String>,
     pub auth_type: String,
+    pub org_id: Uuid,
+    pub org_name: String,
+    pub role: String,
+    pub permissions: Vec<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -98,6 +129,7 @@ pub struct Notification {
     pub read: bool,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub org_id: Option<Uuid>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -155,6 +187,7 @@ pub struct AuditLogEntry {
     pub detail: Option<String>,
     pub ip_address: Option<String>,
     pub created_at: DateTime<Utc>,
+    pub org_id: Option<Uuid>,
 }
 
 #[derive(Debug, Serialize)]
@@ -168,4 +201,21 @@ pub struct HealthResponse {
     pub status: String,
     pub iam_db: String,
     pub app_db: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct InviteMemberRequest {
+    pub email: String,
+    pub role: String,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct UpdateMemberRoleRequest {
+    pub role: String,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OrgResponse {
+    pub org: Organization,
+    pub members: Vec<OrgMemberInfo>,
 }

@@ -115,7 +115,8 @@
     "dashboard": "Painel",
     "settings": "Configurações",
     "notifications": "Notificações",
-    "unreadNotifications": "Notificações Não Lidas"
+    "unreadNotifications": "Notificações Não Lidas",
+    "organization": "Organização"
   },
   "settings": {
     "title": "Configurações da Conta",

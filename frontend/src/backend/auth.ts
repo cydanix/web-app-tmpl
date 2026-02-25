@@ -9,6 +9,10 @@ export interface UserInfo {
   avatar_url: string | null;
   username: string | null;
   auth_type: string;
+  org_id: string;
+  org_name: string;
+  role: string;
+  permissions: string[];
 }
 
 export interface AuthTokens {

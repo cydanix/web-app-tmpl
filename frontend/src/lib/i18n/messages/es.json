@@ -115,7 +115,8 @@
     "dashboard": "Panel de Control",
     "settings": "Configuración",
     "notifications": "Notificaciones",
-    "unreadNotifications": "Notificaciones No Leídas"
+    "unreadNotifications": "Notificaciones No Leídas",
+    "organization": "Organización"
   },
   "settings": {
     "title": "Configuración de Cuenta",

@@ -5,7 +5,7 @@ use chrono::Utc;
 use uuid::Uuid;
 use std::time::Duration;
 use crate::config::AppConfig;
-use crate::models::{UserProfile, Notification, AuditLogEntry, PaginatedResponse};
+use crate::models::{UserProfile, Notification, AuditLogEntry, PaginatedResponse, Organization, OrgMember};
 
 /// Database context that wraps both IAM and app connection pools
 #[derive(Clone)]
@@ -21,10 +21,6 @@ impl DbContext {
 
     pub fn iam_pool(&self) -> &PgPool {
         &self.iam_pool
-    }
-
-    pub fn app_pool(&self) -> &PgPool {
-        &self.app_pool
     }
 
     pub async fn health_check(&self) -> (bool, bool) {
@@ -182,6 +178,162 @@ impl DbContext {
     }
 }
 
+// --------------- Organizations ---------------
+
+impl DbContext {
+    pub async fn create_organization(
+        &self,
+        name: &str,
+        slug: &str,
+    ) -> Result<Organization, sqlx::Error> {
+        sqlx::query_as::<_, Organization>(
+            r#"
+            INSERT INTO organizations (id, name, slug, created_at, updated_at)
+            VALUES ($1, $2, $3, $4, $4)
+            RETURNING id, name, slug, created_at, updated_at
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(name)
+        .bind(slug)
+        .bind(Utc::now())
+        .fetch_one(&self.app_pool)
+        .await
+    }
+
+    pub async fn add_org_member(
+        &self,
+        org_id: Uuid,
+        profile_id: Uuid,
+        role_id: Uuid,
+    ) -> Result<OrgMember, sqlx::Error> {
+        sqlx::query_as::<_, OrgMember>(
+            r#"
+            INSERT INTO org_members (org_id, profile_id, role_id, joined_at)
+            VALUES ($1, $2, $3, $4)
+            RETURNING org_id, profile_id, role_id, joined_at
+            "#,
+        )
+        .bind(org_id)
+        .bind(profile_id)
+        .bind(role_id)
+        .bind(Utc::now())
+        .fetch_one(&self.app_pool)
+        .await
+    }
+
+    pub async fn get_org_for_profile(
+        &self,
+        profile_id: Uuid,
+    ) -> Result<Option<(Organization, OrgMember)>, sqlx::Error> {
+        let row = sqlx::query_as::<_, OrgMember>(
+            r#"
+            SELECT org_id, profile_id, role_id, joined_at
+            FROM org_members
+            WHERE profile_id = $1
+            "#,
+        )
+        .bind(profile_id)
+        .fetch_optional(&self.app_pool)
+        .await?;
+
+        match row {
+            Some(member) => {
+                let org = sqlx::query_as::<_, Organization>(
+                    "SELECT id, name, slug, created_at, updated_at FROM organizations WHERE id = $1",
+                )
+                .bind(member.org_id)
+                .fetch_one(&self.app_pool)
+                .await?;
+                Ok(Some((org, member)))
+            }
+            None => Ok(None),
+        }
+    }
+
+    pub async fn get_org_members_with_profiles(
+        &self,
+        org_id: Uuid,
+    ) -> Result<Vec<(OrgMember, UserProfile)>, sqlx::Error> {
+        let members = sqlx::query_as::<_, OrgMember>(
+            "SELECT org_id, profile_id, role_id, joined_at FROM org_members WHERE org_id = $1 ORDER BY joined_at",
+        )
+        .bind(org_id)
+        .fetch_all(&self.app_pool)
+        .await?;
+
+        let mut result = Vec::new();
+        for member in members {
+            let profile = sqlx::query_as::<_, UserProfile>(
+                "SELECT id, iam_account_id, display_name, avatar_url, username, created_at, updated_at FROM user_profiles WHERE id = $1",
+            )
+            .bind(member.profile_id)
+            .fetch_one(&self.app_pool)
+            .await?;
+            result.push((member, profile));
+        }
+
+        Ok(result)
+    }
+
+    pub async fn remove_org_member(
+        &self,
+        org_id: Uuid,
+        profile_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM org_members WHERE org_id = $1 AND profile_id = $2")
+            .bind(org_id)
+            .bind(profile_id)
+            .execute(&self.app_pool)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_member_role(
+        &self,
+        org_id: Uuid,
+        profile_id: Uuid,
+        role_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("UPDATE org_members SET role_id = $3 WHERE org_id = $1 AND profile_id = $2")
+            .bind(org_id)
+            .bind(profile_id)
+            .bind(role_id)
+            .execute(&self.app_pool)
+            .await?;
+        Ok(())
+    }
+
+    /// Generate a unique slug from a base string, appending a suffix if needed
+    pub async fn generate_unique_slug(
+        &self,
+        base: &str,
+    ) -> Result<String, sqlx::Error> {
+        let slug = base
+            .to_lowercase()
+            .chars()
+            .map(|c| if c.is_alphanumeric() { c } else { '-' })
+            .collect::<String>();
+        let slug = slug.trim_matches('-').to_string();
+        let slug = if slug.is_empty() { "org".to_string() } else { slug };
+
+        let existing = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM organizations WHERE slug = $1",
+        )
+        .bind(&slug)
+        .fetch_one(&self.app_pool)
+        .await?;
+
+        if existing == 0 {
+            return Ok(slug);
+        }
+
+        // Append random suffix
+        let suffix = &Uuid::new_v4().to_string()[..8];
+        Ok(format!("{}-{}", slug, suffix))
+    }
+}
+
 // --------------- Notifications ---------------
 
 impl DbContext {
@@ -190,18 +342,20 @@ impl DbContext {
         profile_id: Uuid,
         level: &str,
         message: &str,
+        org_id: Option<Uuid>,
     ) -> Result<Notification, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
-            INSERT INTO notifications (profile_id, level, message, read, created_at, updated_at)
-            VALUES ($1, $2, $3, false, $4, $4)
-            RETURNING id, profile_id, level, message, read, created_at, updated_at
+            INSERT INTO notifications (profile_id, level, message, read, created_at, updated_at, org_id)
+            VALUES ($1, $2, $3, false, $4, $4, $5)
+            RETURNING id, profile_id, level, message, read, created_at, updated_at, org_id
             "#,
         )
         .bind(profile_id)
         .bind(level)
         .bind(message)
         .bind(Utc::now())
+        .bind(org_id)
         .fetch_one(&self.app_pool)
         .await
     }
@@ -209,26 +363,29 @@ impl DbContext {
     pub async fn get_notifications_paginated(
         &self,
         profile_id: Uuid,
+        org_id: Uuid,
         limit: i64,
         offset: i64,
     ) -> Result<PaginatedResponse<Notification>, sqlx::Error> {
         let total = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM notifications WHERE profile_id = $1",
+            "SELECT COUNT(*) FROM notifications WHERE profile_id = $1 AND (org_id = $2 OR org_id IS NULL)",
         )
         .bind(profile_id)
+        .bind(org_id)
         .fetch_one(&self.app_pool)
         .await?;
 
         let items = sqlx::query_as::<_, Notification>(
             r#"
-            SELECT id, profile_id, level, message, read, created_at, updated_at
+            SELECT id, profile_id, level, message, read, created_at, updated_at, org_id
             FROM notifications
-            WHERE profile_id = $1
+            WHERE profile_id = $1 AND (org_id = $2 OR org_id IS NULL)
             ORDER BY created_at DESC
-            LIMIT $2 OFFSET $3
+            LIMIT $3 OFFSET $4
             "#,
         )
         .bind(profile_id)
+        .bind(org_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.app_pool)
@@ -240,11 +397,13 @@ impl DbContext {
     pub async fn get_unread_count(
         &self,
         profile_id: Uuid,
+        org_id: Uuid,
     ) -> Result<i64, sqlx::Error> {
         sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM notifications WHERE profile_id = $1 AND read = false",
+            "SELECT COUNT(*) FROM notifications WHERE profile_id = $1 AND read = false AND (org_id = $2 OR org_id IS NULL)",
         )
         .bind(profile_id)
+        .bind(org_id)
         .fetch_one(&self.app_pool)
         .await
     }
@@ -260,7 +419,7 @@ impl DbContext {
             UPDATE notifications
             SET read = $1, updated_at = $2
             WHERE id = $3 AND profile_id = $4
-            RETURNING id, profile_id, level, message, read, created_at, updated_at
+            RETURNING id, profile_id, level, message, read, created_at, updated_at, org_id
             "#,
         )
         .bind(read)
@@ -282,7 +441,7 @@ impl DbContext {
             UPDATE notifications
             SET read = $1, updated_at = $2
             WHERE id = ANY($3) AND profile_id = $4
-            RETURNING id, profile_id, level, message, read, created_at, updated_at
+            RETURNING id, profile_id, level, message, read, created_at, updated_at, org_id
             "#,
         )
         .bind(read)
@@ -348,11 +507,12 @@ impl DbContext {
         resource: &str,
         detail: Option<&str>,
         ip_address: Option<&str>,
+        org_id: Option<Uuid>,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
-            INSERT INTO audit_log (id, profile_id, action, resource, detail, ip_address, created_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO audit_log (id, profile_id, action, resource, detail, ip_address, created_at, org_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             "#,
         )
         .bind(Uuid::new_v4())
@@ -362,6 +522,7 @@ impl DbContext {
         .bind(detail)
         .bind(ip_address)
         .bind(Utc::now())
+        .bind(org_id)
         .execute(&self.app_pool)
         .await?;
         Ok(())
@@ -370,26 +531,29 @@ impl DbContext {
     pub async fn get_audit_log(
         &self,
         profile_id: Uuid,
+        org_id: Uuid,
         limit: i64,
         offset: i64,
     ) -> Result<PaginatedResponse<AuditLogEntry>, sqlx::Error> {
         let total = sqlx::query_scalar::<_, i64>(
-            "SELECT COUNT(*) FROM audit_log WHERE profile_id = $1",
+            "SELECT COUNT(*) FROM audit_log WHERE (profile_id = $1 OR org_id = $2)",
         )
         .bind(profile_id)
+        .bind(org_id)
         .fetch_one(&self.app_pool)
         .await?;
 
         let items = sqlx::query_as::<_, AuditLogEntry>(
             r#"
-            SELECT id, profile_id, action, resource, detail, ip_address, created_at
+            SELECT id, profile_id, action, resource, detail, ip_address, created_at, org_id
             FROM audit_log
-            WHERE profile_id = $1
+            WHERE (profile_id = $1 OR org_id = $2)
             ORDER BY created_at DESC
-            LIMIT $2 OFFSET $3
+            LIMIT $3 OFFSET $4
             "#,
         )
         .bind(profile_id)
+        .bind(org_id)
         .bind(limit)
         .bind(offset)
         .fetch_all(&self.app_pool)

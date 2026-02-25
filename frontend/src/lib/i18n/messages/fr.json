@@ -115,7 +115,8 @@
     "dashboard": "Tableau de bord",
     "settings": "Paramètres",
     "notifications": "Notifications",
-    "unreadNotifications": "Notifications non lues"
+    "unreadNotifications": "Notifications non lues",
+    "organization": "Organisation"
   },
   "settings": {
     "title": "Paramètres du compte",
