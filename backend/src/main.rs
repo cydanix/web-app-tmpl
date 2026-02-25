@@ -74,7 +74,7 @@ async fn main() -> std::io::Result<()> {
     // Check if Google OAuth is enabled
     if let Ok(client_id) = env::var("GOOGLE_OAUTH_CLIENT_ID") {
         if !client_id.is_empty() {
-            log::info!("Google OAuth enabled with client ID: {}", client_id);
+            log::info!("Google OAuth enabled");
         }
     }
 
@@ -115,12 +115,25 @@ async fn main() -> std::io::Result<()> {
 
     log::info!("Starting server at http://{}", bind_address);
 
+    let cors_origin = env::var("CORS_ORIGIN").unwrap_or_default();
+
     HttpServer::new(move || {
-        let cors = Cors::default()
-            .allow_any_origin()
-            .allow_any_method()
-            .allow_any_header()
-            .max_age(3600);
+        let cors = if cors_origin.is_empty() {
+            Cors::default()
+                .allow_any_origin()
+                .allow_any_method()
+                .allow_any_header()
+                .max_age(3600)
+        } else {
+            let mut cors_builder = Cors::default();
+            for origin in cors_origin.split(',') {
+                cors_builder = cors_builder.allowed_origin(origin.trim());
+            }
+            cors_builder
+                .allow_any_method()
+                .allow_any_header()
+                .max_age(3600)
+        };
 
         let auth = HttpAuthentication::bearer(auth::validator);
 
@@ -177,20 +190,20 @@ async fn main() -> std::io::Result<()> {
                     .route("", web::post().to(handlers::create_notification))
                     .route("/unread-count", web::get().to(handlers::get_unread_count))
                     .route(
-                        "/{id}",
-                        web::put().to(handlers::update_notification),
-                    )
-                    .route(
-                        "/{id}",
-                        web::delete().to(handlers::delete_notification),
-                    )
-                    .route(
                         "/batch",
                         web::put().to(handlers::update_notifications_batch),
                     )
                     .route(
                         "/batch",
                         web::delete().to(handlers::delete_notifications_batch),
+                    )
+                    .route(
+                        "/{id}",
+                        web::put().to(handlers::update_notification),
+                    )
+                    .route(
+                        "/{id}",
+                        web::delete().to(handlers::delete_notification),
                     ),
             )
             // Account settings routes

@@ -1,6 +1,6 @@
 ---
 title: Building High-Performance Backends with Rust
-date: 2024-01-20
+date: 2025-06-20
 ---
 
 Rust has become one of the most popular languages for building high-performance backend services. In this article, we'll explore why Rust is an excellent choice for backend development.

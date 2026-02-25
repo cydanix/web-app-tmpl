@@ -1,4 +1,4 @@
-PHONY: run-db run-backend run-frontend run-browser build-docker-backend build-docker-frontend
+.PHONY: run-db run-backend run-frontend run-browser build-docker-backend build-docker-frontend
 
 run-db:
 	docker run -d --name webapp-postgres -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=webapp postgres

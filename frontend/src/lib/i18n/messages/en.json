@@ -65,7 +65,18 @@
     "pricing": {
       "title": "Simple, Transparent Pricing",
       "subtitle": "Choose the plan that fits your needs"
-    }
+    },
+    "featuresHeading": "Powerful Features",
+    "featuresSubheading": "Everything you need to build and scale your application",
+    "testimonialsHeading": "Loved by Developers",
+    "testimonialsSubheading": "See what our customers are saying about us",
+    "ctaTitle": "Ready to Get Started?",
+    "ctaSubtitle": "Join thousands of developers building amazing applications with our platform. Start your free trial today, no credit card required.",
+    "scheduleDemo": "Schedule a Demo",
+    "allSystemsOperational": "All Systems Operational",
+    "uptime": "Uptime",
+    "latency": "Latency",
+    "requestsDay": "Requests/day"
   },
   "signin": {
     "title": "Sign In",

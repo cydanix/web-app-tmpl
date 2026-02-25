@@ -1,6 +1,6 @@
 ---
 title: Web Application Security Best Practices
-date: 2024-01-25
+date: 2025-06-25
 ---
 
 Security is a critical aspect of web application development. In this article, we'll cover essential security best practices that every developer should know.

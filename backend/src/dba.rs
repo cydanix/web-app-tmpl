@@ -191,10 +191,12 @@ impl DbContext {
         .await
     }
 
-    /// Get all notifications for an account
+    /// Get notifications for an account with pagination
     pub async fn get_notifications(
         &self,
         account_id: Uuid,
+        limit: i64,
+        offset: i64,
     ) -> Result<Vec<Notification>, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
@@ -202,9 +204,12 @@ impl DbContext {
             FROM notifications
             WHERE account_id = $1
             ORDER BY created_at DESC
+            LIMIT $2 OFFSET $3
             "#,
         )
         .bind(account_id)
+        .bind(limit)
+        .bind(offset)
         .fetch_all(&self.pool)
         .await
     }

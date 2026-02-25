@@ -1,6 +1,6 @@
 ---
 title: Scaling Web Applications for Growth
-date: 2024-02-01
+date: 2025-07-01
 ---
 
 As your application grows, scaling becomes a critical concern. This article explores strategies for scaling web applications effectively.

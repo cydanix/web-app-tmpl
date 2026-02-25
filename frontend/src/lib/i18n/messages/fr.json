@@ -65,7 +65,18 @@
     "pricing": {
       "title": "Tarification Simple et Transparente",
       "subtitle": "Choisissez le plan qui correspond à vos besoins"
-    }
+    },
+    "featuresHeading": "Fonctionnalités Puissantes",
+    "featuresSubheading": "Tout ce dont vous avez besoin pour créer et faire évoluer votre application",
+    "testimonialsHeading": "Apprécié par les Développeurs",
+    "testimonialsSubheading": "Découvrez ce que nos clients disent de nous",
+    "ctaTitle": "Prêt à Commencer ?",
+    "ctaSubtitle": "Rejoignez des milliers de développeurs qui créent des applications incroyables avec notre plateforme. Commencez votre essai gratuit aujourd'hui, sans carte de crédit.",
+    "scheduleDemo": "Planifier une Démo",
+    "allSystemsOperational": "Tous les Systèmes Opérationnels",
+    "uptime": "Disponibilité",
+    "latency": "Latence",
+    "requestsDay": "Requêtes/jour"
   },
   "signin": {
     "title": "Se connecter",

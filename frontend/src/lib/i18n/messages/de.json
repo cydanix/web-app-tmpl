@@ -65,7 +65,18 @@
     "pricing": {
       "title": "Einfache und transparente Preise",
       "subtitle": "Wählen Sie den Plan, der Ihren Bedürfnissen entspricht"
-    }
+    },
+    "featuresHeading": "Leistungsstarke Funktionen",
+    "featuresSubheading": "Alles, was Sie brauchen, um Ihre Anwendung zu erstellen und zu skalieren",
+    "testimonialsHeading": "Von Entwicklern Geliebt",
+    "testimonialsSubheading": "Sehen Sie, was unsere Kunden über uns sagen",
+    "ctaTitle": "Bereit Loszulegen?",
+    "ctaSubtitle": "Schließen Sie sich Tausenden von Entwicklern an, die erstaunliche Anwendungen mit unserer Plattform erstellen. Starten Sie noch heute Ihre kostenlose Testversion, keine Kreditkarte erforderlich.",
+    "scheduleDemo": "Demo Planen",
+    "allSystemsOperational": "Alle Systeme Betriebsbereit",
+    "uptime": "Verfügbarkeit",
+    "latency": "Latenz",
+    "requestsDay": "Anfragen/Tag"
   },
   "signin": {
     "title": "Anmelden",

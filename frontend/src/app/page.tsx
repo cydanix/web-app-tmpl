@@ -5,63 +5,22 @@ import Link from "next/link";
 import Footer from "@/components/footer";
 import PricingPlans from "@/components/pricing-plans";
 import { pricingPlans } from "@/lib/pricing-data";
+import { useI18n } from "@/contexts/i18n-context";
 
 export default function Home() {
-  const features = [
-    {
-      title: "Lightning Fast",
-      description: "Built with Rust and Next.js for maximum performance and speed",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Secure & Reliable",
-      description: "Enterprise-grade security with 99.9% uptime guarantee",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-        </svg>
-      ),
-    },
-    {
-      title: "Real-time Updates",
-      description: "Live data synchronization and instant notifications",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-        </svg>
-      ),
-    },
-    {
-      title: "Easy Integration",
-      description: "Simple API and comprehensive documentation for quick setup",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-        </svg>
-      ),
-    },
-    {
-      title: "Scalable Architecture",
-      description: "Handles millions of requests with horizontal scaling",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
-        </svg>
-      ),
-    },
-    {
-      title: "24/7 Support",
-      description: "Dedicated support team available around the clock",
-      icon: (
-        <svg className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" />
-        </svg>
-      ),
-    },
+  const { t } = useI18n();
+
+  const featureKeys = [
+    "lightningFast", "secure", "realtime", "integration", "scalable", "developer",
+  ] as const;
+
+  const featureIcons = [
+    <svg key="fast" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>,
+    <svg key="secure" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" /></svg>,
+    <svg key="realtime" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>,
+    <svg key="integration" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>,
+    <svg key="scalable" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>,
+    <svg key="support" className="w-12 h-12 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18.364 5.636l-3.536 3.536m0 5.656l3.536 3.536M9.172 9.172L5.636 5.636m3.536 9.192l-3.536 3.536M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-5 0a4 4 0 11-8 0 4 4 0 018 0z" /></svg>,
   ];
 
   const testimonials = [
@@ -97,26 +56,25 @@ export default function Home() {
           <Row className="align-items-center">
             <Col lg={6} className="mb-5 mb-lg-0">
               <h1 className="display-3 fw-bold mb-4">
-                Build Faster, Scale Better
+                {t("home.title")}
               </h1>
               <p className="lead mb-4">
-                The ultimate platform for modern web applications. Powered by Rust and Next.js,
-                delivering unmatched performance and reliability.
+                {t("home.subtitle")}
               </p>
               <div className="d-flex gap-3 flex-wrap">
                 <Link href="/signup">
                   <Button variant="light" size="lg" className="px-5 fw-semibold">
-                    Start Free Trial
+                    {t("home.startTrial")}
                   </Button>
                 </Link>
                 <Link href="/status">
                   <Button variant="outline-light" size="lg" className="px-5">
-                    View Status
+                    {t("home.viewStatus")}
                   </Button>
                 </Link>
               </div>
               <p className="mt-4 opacity-75">
-                <small>No credit card required • 14-day free trial</small>
+                <small>{t("home.noCreditCard")}</small>
               </p>
             </Col>
             <Col lg={6}>
@@ -124,20 +82,20 @@ export default function Home() {
                 <div className="bg-gradient-to-br from-white/20 to-white/5 rounded-2 p-8">
                   <div className="text-center mb-4">
                     <div className="bg-green-500 w-3 h-3 rounded-full inline-block"></div>
-                    <span className="ms-2 fw-semibold">All Systems Operational</span>
+                    <span className="ms-2 fw-semibold">{t("home.allSystemsOperational")}</span>
                   </div>
                   <div className="d-flex justify-content-around text-center">
                     <div>
                       <div className="display-6 fw-bold">99.9%</div>
-                      <div className="small opacity-75">Uptime</div>
+                      <div className="small opacity-75">{t("home.uptime")}</div>
                     </div>
                     <div>
                       <div className="display-6 fw-bold">&lt;50ms</div>
-                      <div className="small opacity-75">Latency</div>
+                      <div className="small opacity-75">{t("home.latency")}</div>
                     </div>
                     <div>
                       <div className="display-6 fw-bold">1M+</div>
-                      <div className="small opacity-75">Requests/day</div>
+                      <div className="small opacity-75">{t("home.requestsDay")}</div>
                     </div>
                   </div>
                 </div>
@@ -151,19 +109,19 @@ export default function Home() {
       <section className="py-20 bg-light">
         <Container>
           <div className="text-center mb-16">
-            <h2 className="display-4 fw-bold mb-3">Powerful Features</h2>
+            <h2 className="display-4 fw-bold mb-3">{t("home.featuresHeading")}</h2>
             <p className="lead text-muted">
-              Everything you need to build and scale your application
+              {t("home.featuresSubheading")}
             </p>
           </div>
           <Row className="g-4">
-            {features.map((feature, index) => (
-              <Col key={index} md={6} lg={4}>
+            {featureKeys.map((key, index) => (
+              <Col key={key} md={6} lg={4}>
                 <Card className="h-100 border-0 shadow-sm hover-shadow transition-all">
                   <Card.Body className="p-4">
-                    <div className="mb-3">{feature.icon}</div>
-                    <h3 className="h5 fw-bold mb-3">{feature.title}</h3>
-                    <p className="text-muted mb-0">{feature.description}</p>
+                    <div className="mb-3">{featureIcons[index]}</div>
+                    <h3 className="h5 fw-bold mb-3">{t(`home.features.${key}.title`)}</h3>
+                    <p className="text-muted mb-0">{t(`home.features.${key}.description`)}</p>
                   </Card.Body>
                 </Card>
               </Col>
@@ -176,9 +134,9 @@ export default function Home() {
       <section className="py-20">
         <Container>
           <div className="text-center mb-16">
-            <h2 className="display-4 fw-bold mb-3">Loved by Developers</h2>
+            <h2 className="display-4 fw-bold mb-3">{t("home.testimonialsHeading")}</h2>
             <p className="lead text-muted">
-              See what our customers are saying about us
+              {t("home.testimonialsSubheading")}
             </p>
           </div>
           <Row className="g-4">
@@ -219,9 +177,9 @@ export default function Home() {
       <section className="py-20 bg-light">
         <Container>
           <div className="text-center mb-16">
-            <h2 className="display-4 fw-bold mb-3">Simple, Transparent Pricing</h2>
+            <h2 className="display-4 fw-bold mb-3">{t("home.pricing.title")}</h2>
             <p className="lead text-muted">
-              Choose the plan that fits your needs
+              {t("home.pricing.subtitle")}
             </p>
           </div>
           <PricingPlans plans={pricingPlans} />
@@ -234,20 +192,19 @@ export default function Home() {
           <Row className="justify-content-center text-center">
             <Col lg={8}>
               <h2 className="display-4 fw-bold mb-4">
-                Ready to Get Started?
+                {t("home.ctaTitle")}
               </h2>
               <p className="lead mb-5">
-                Join thousands of developers building amazing applications with our platform.
-                Start your free trial today, no credit card required.
+                {t("home.ctaSubtitle")}
               </p>
               <div className="d-flex gap-3 justify-content-center flex-wrap">
                 <Link href="/signup">
                   <Button variant="light" size="lg" className="px-5 fw-semibold">
-                    Start Free Trial
+                    {t("home.startTrial")}
                   </Button>
                 </Link>
                 <Button variant="outline-light" size="lg" className="px-5">
-                  Schedule a Demo
+                  {t("home.scheduleDemo")}
                 </Button>
               </div>
             </Col>

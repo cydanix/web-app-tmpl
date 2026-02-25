@@ -111,3 +111,9 @@ pub struct AccountSettings {
 pub struct UpdateAccountSettingsRequest {
     pub username: Option<String>,
 }
+
+#[derive(Debug, Deserialize)]
+pub struct PaginationQuery {
+    pub limit: Option<i64>,
+    pub offset: Option<i64>,
+}
