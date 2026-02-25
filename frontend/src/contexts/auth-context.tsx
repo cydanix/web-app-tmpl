@@ -3,7 +3,7 @@
 import { createContext, useContext, useState, useEffect, useRef, ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import {
-  AccountInfo,
+  UserInfo,
   AuthTokens,
   signup as signupApi,
   login as loginApi,
@@ -14,7 +14,7 @@ import {
 } from "@/backend/auth";
 
 interface AuthContextType {
-  user: AccountInfo | null;
+  user: UserInfo | null;
   tokens: AuthTokens | null;
   loading: boolean;
   signup: (email: string, password: string) => Promise<void>;
@@ -27,7 +27,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<AccountInfo | null>(null);
+  const [user, setUser] = useState<UserInfo | null>(null);
   const [tokens, setTokens] = useState<AuthTokens | null>(null);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
@@ -106,9 +106,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setTokens(tokenData);
         localStorage.setItem("auth_tokens", JSON.stringify(tokenData));
         
-        // Update user info if account data is present
-        if (data.account) {
-          setUser(data.account);
+        if (data.user) {
+          setUser(data.user);
         }
       } catch (error) {
         // Refresh token invalid, logout user
@@ -173,7 +172,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string) => {
     const data = await loginApi(email, password);
-    setUser(data.account);
+    setUser(data.user);
     const tokenData = {
       access_token: data.access_token,
       refresh_token: data.refresh_token,
@@ -187,7 +186,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const googleLogin = async (idToken: string) => {
     const data = await googleLoginApi(idToken);
-    setUser(data.account);
+    setUser(data.user);
     const tokenData = {
       access_token: data.access_token,
       refresh_token: data.refresh_token,

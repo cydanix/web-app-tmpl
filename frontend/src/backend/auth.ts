@@ -1,8 +1,7 @@
 import { getApiUrl } from "./config";
 
-export interface AccountInfo {
+export interface UserInfo {
   id: string;
-  iam_account_id: string;
   email: string;
   display_name: string | null;
   avatar_url: string | null;
@@ -18,7 +17,7 @@ export interface AuthTokens {
 }
 
 export interface LoginResponse {
-  account: AccountInfo;
+  user: UserInfo;
   access_token: string;
   refresh_token: string;
   access_token_expires_at: string;
@@ -35,7 +34,7 @@ export interface RefreshResponse {
   refresh_token: string;
   access_token_expires_at: string;
   refresh_token_expires_at: string;
-  account?: AccountInfo;
+  user?: UserInfo;
 }
 
 /**
@@ -160,27 +159,24 @@ export const refreshToken = async (refreshToken: string): Promise<RefreshRespons
 /**
  * Get current user information
  */
-export const getCurrentUser = async (): Promise<AccountInfo> => {
+export const getCurrentUser = async (): Promise<UserInfo> => {
   const apiUrl = getApiUrl();
   const response = await fetch(`${apiUrl}/auth/me`, {
     headers: getAuthHeaders(),
   });
 
   if (!response.ok) {
-    // If unauthorized, the token is invalid/expired - this is expected
     if (response.status === 401) {
       const error = new Error("Unauthorized");
       error.name = "UnauthorizedError";
       throw error;
     }
-    
-    // For other errors, try to get error message from response
+
     let errorMessage = "Failed to get user information";
     try {
       const errorData = await response.json();
       errorMessage = errorData.error || errorMessage;
     } catch {
-      // If response is not JSON, use default message
     }
     throw new Error(errorMessage);
   }

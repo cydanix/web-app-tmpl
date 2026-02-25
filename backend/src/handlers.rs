@@ -6,26 +6,38 @@ use std::env;
 use crate::auth::AuthenticatedUser;
 use crate::dba::DbContext;
 use crate::models::{
-    Account, AccountInfo, AccountSettings, AuthResponse, ChangePasswordRequest,
-    CreateNotificationRequest, DeleteAccountRequest, GoogleLoginRequest, LoginRequest,
-    PaginationQuery, RefreshTokenRequest, SignupRequest, SignupResponse,
-    UpdateAccountSettingsRequest, UpdateNotificationRequest, VerifyEmailRequest,
+    AuthResponse, ChangePasswordRequest, CreateNotificationRequest, DeleteAccountRequest,
+    GoogleLoginRequest, LoginRequest, PaginationQuery, ProfileSettings, RefreshTokenRequest,
+    SignupRequest, SignupResponse, UpdateNotificationRequest, UpdateProfileSettingsRequest,
+    UserInfo, UserProfile,
 };
 
-/// Resolve the app Account for an authenticated user, returning an HTTP error response on failure.
-async fn get_account_or_error(
+/// Build a UserInfo DTO from a UserProfile and a nano-iam Account.
+fn build_user_info(profile: &UserProfile, iam: &nano_iam::Account) -> UserInfo {
+    UserInfo {
+        id: profile.id,
+        email: iam.email.clone(),
+        display_name: profile.display_name.clone(),
+        avatar_url: profile.avatar_url.clone(),
+        username: profile.username.clone(),
+        auth_type: format!("{:?}", iam.auth_type).to_lowercase(),
+    }
+}
+
+/// Resolve the UserProfile for an authenticated user, returning an HTTP error response on failure.
+async fn get_profile_or_error(
     db: &DbContext,
     user: &AuthenticatedUser,
-) -> Result<Account, HttpResponse> {
-    match db.get_account_by_iam_id(user.account_id).await {
-        Ok(Some(acc)) => Ok(acc),
+) -> Result<UserProfile, HttpResponse> {
+    match db.get_profile_by_iam_id(user.account_id).await {
+        Ok(Some(p)) => Ok(p),
         Ok(None) => Err(HttpResponse::NotFound().json(serde_json::json!({
-            "error": "Account not found"
+            "error": "User profile not found"
         }))),
         Err(e) => {
-            log::error!("Failed to get account: {:?}", e);
+            log::error!("Failed to get user profile: {:?}", e);
             Err(HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to get account"
+                "error": "Failed to get user profile"
             })))
         }
     }
@@ -36,7 +48,6 @@ pub async fn signup(
     db: web::Data<DbContext>,
     req: web::Json<SignupRequest>,
 ) -> impl Responder {
-    // Register with IAM
     let iam_account = match auth_service.register(&req.email, &req.password).await {
         Ok(account) => account,
         Err(IamError::Db(sqlx::Error::Database(db_err))) if db_err.constraint() == Some("accounts_email_key") => {
@@ -57,20 +68,13 @@ pub async fn signup(
         }
     };
 
-    // Create our Account record linked to IAM account
-    if let Err(e) = db.create_account(
-        iam_account.id,
-        iam_account.email.clone(),
-    )
-    .await
-    {
-        log::error!("Failed to create account record: {:?}", e);
+    if let Err(e) = db.create_profile(iam_account.id, iam_account.email.clone()).await {
+        log::error!("Failed to create user profile: {:?}", e);
         return HttpResponse::InternalServerError().json(serde_json::json!({
             "error": "Failed to create account"
         }));
     }
 
-    // Return signup response without tokens - user needs to verify email first
     HttpResponse::Ok().json(SignupResponse {
         account_id: iam_account.id,
         email: iam_account.email,
@@ -172,14 +176,11 @@ pub async fn login(
         }
     };
 
-    // Get our Account record, or create it if it doesn't exist
-    let account = match db.get_or_create_account_by_iam_id(
+    let profile = match db.get_or_create_profile(
         login_result.account.id,
         login_result.account.email.clone(),
-    )
-    .await
-    {
-        Ok(acc) => acc,
+    ).await {
+        Ok(p) => p,
         Err(e) => {
             log::error!("Database error: {:?}", e);
             return HttpResponse::InternalServerError().json(serde_json::json!({
@@ -188,26 +189,13 @@ pub async fn login(
         }
     };
 
-    // Create sign-in notification
     let notification_message = format!("{} signed in", login_result.account.email);
-    if let Err(e) = db
-        .create_notification(account.id, "info", &notification_message)
-        .await
-    {
-        // Log error but don't fail the login
+    if let Err(e) = db.create_notification(profile.id, "info", &notification_message).await {
         log::warn!("Failed to create sign-in notification: {:?}", e);
     }
 
     HttpResponse::Ok().json(AuthResponse {
-        account: AccountInfo {
-            id: account.id,
-            iam_account_id: account.iam_account_id,
-            email: login_result.account.email,
-            display_name: account.display_name,
-            avatar_url: account.avatar_url,
-            username: account.username,
-            auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
-        },
+        user: build_user_info(&profile, &login_result.account),
         access_token: login_result.tokens.access_token.to_string(),
         refresh_token: login_result.tokens.refresh_token.to_string(),
         access_token_expires_at: login_result.tokens.access_token_expires_at,
@@ -258,14 +246,11 @@ pub async fn google_login(
         }
     };
 
-    // Get or create our Account record
-    let account = match db.get_or_create_account_by_iam_id(
+    let profile = match db.get_or_create_profile(
         login_result.account.id,
         login_result.account.email.clone(),
-    )
-    .await
-    {
-        Ok(acc) => acc,
+    ).await {
+        Ok(p) => p,
         Err(e) => {
             log::error!("Database error: {:?}", e);
             return HttpResponse::InternalServerError().json(serde_json::json!({
@@ -274,26 +259,13 @@ pub async fn google_login(
         }
     };
 
-    // Create sign-in notification
     let notification_message = format!("{} signed in", login_result.account.email);
-    if let Err(e) = db
-        .create_notification(account.id, "info", &notification_message)
-        .await
-    {
-        // Log error but don't fail the login
+    if let Err(e) = db.create_notification(profile.id, "info", &notification_message).await {
         log::warn!("Failed to create sign-in notification: {:?}", e);
     }
 
     HttpResponse::Ok().json(AuthResponse {
-        account: AccountInfo {
-            id: account.id,
-            iam_account_id: account.iam_account_id,
-            email: login_result.account.email,
-            display_name: account.display_name,
-            avatar_url: account.avatar_url,
-            username: account.username,
-            auth_type: format!("{:?}", login_result.account.auth_type).to_lowercase(),
-        },
+        user: build_user_info(&profile, &login_result.account),
         access_token: login_result.tokens.access_token.to_string(),
         refresh_token: login_result.tokens.refresh_token.to_string(),
         access_token_expires_at: login_result.tokens.access_token_expires_at,
@@ -326,12 +298,11 @@ pub async fn refresh_token(
         }
     };
 
-    // Get our Account record
-    let account = match db.get_account_by_iam_id(refresh_result.account.id).await {
-        Ok(Some(acc)) => acc,
+    let profile = match db.get_profile_by_iam_id(refresh_result.account.id).await {
+        Ok(Some(p)) => p,
         Ok(None) => {
             return HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Account not found"
+                "error": "User profile not found"
             }));
         }
         Err(e) => {
@@ -343,15 +314,7 @@ pub async fn refresh_token(
     };
 
     HttpResponse::Ok().json(AuthResponse {
-        account: AccountInfo {
-            id: account.id,
-            iam_account_id: account.iam_account_id,
-            email: refresh_result.account.email,
-            display_name: account.display_name,
-            avatar_url: account.avatar_url,
-            username: account.username,
-            auth_type: format!("{:?}", refresh_result.account.auth_type).to_lowercase(),
-        },
+        user: build_user_info(&profile, &refresh_result.account),
         access_token: refresh_result.tokens.access_token.to_string(),
         refresh_token: refresh_result.tokens.refresh_token.to_string(),
         access_token_expires_at: refresh_result.tokens.access_token_expires_at,
@@ -398,7 +361,6 @@ pub async fn get_me(
     auth_service: web::Data<Arc<AuthService>>,
     user: AuthenticatedUser,
 ) -> impl Responder {
-    // Get IAM account info
     let iam_account = match auth_service.get_account(user.account_id).await {
         Ok(acc) => acc,
         Err(e) => {
@@ -409,12 +371,11 @@ pub async fn get_me(
         }
     };
 
-    // Get our Account record
-    let account = match db.get_account_by_iam_id(user.account_id).await {
-        Ok(Some(acc)) => acc,
+    let profile = match db.get_profile_by_iam_id(user.account_id).await {
+        Ok(Some(p)) => p,
         Ok(None) => {
             return HttpResponse::NotFound().json(serde_json::json!({
-                "error": "Account not found"
+                "error": "User profile not found"
             }));
         }
         Err(e) => {
@@ -425,15 +386,7 @@ pub async fn get_me(
         }
     };
 
-    HttpResponse::Ok().json(AccountInfo {
-        id: account.id,
-        iam_account_id: account.iam_account_id,
-        email: iam_account.email,
-        display_name: account.display_name,
-        avatar_url: account.avatar_url,
-        username: account.username,
-        auth_type: format!("{:?}", iam_account.auth_type).to_lowercase(),
-    })
+    HttpResponse::Ok().json(build_user_info(&profile, &iam_account))
 }
 
 pub async fn change_password(
@@ -473,7 +426,6 @@ pub async fn delete_account(
     user: AuthenticatedUser,
     req: web::Json<DeleteAccountRequest>,
 ) -> impl Responder {
-    // Delete our Account record first (while IAM account still exists for password verification)
     match auth_service
         .delete_account(user.account_id, &req.password)
         .await
@@ -492,9 +444,8 @@ pub async fn delete_account(
         }
     };
 
-    // Delete our app account record (notifications cascade automatically)
-    if let Err(e) = db.delete_account_by_iam_id(user.account_id).await {
-        log::error!("Failed to delete app account record (IAM account already deleted): {:?}", e);
+    if let Err(e) = db.delete_profile_by_iam_id(user.account_id).await {
+        log::error!("Failed to delete user profile (IAM account already deleted): {:?}", e);
     }
 
     HttpResponse::Ok().json(serde_json::json!({
@@ -509,22 +460,18 @@ pub async fn create_notification(
     user: AuthenticatedUser,
     req: web::Json<CreateNotificationRequest>,
 ) -> impl Responder {
-    // Validate level
     if !["info", "warning", "error"].contains(&req.level.as_str()) {
         return HttpResponse::BadRequest().json(serde_json::json!({
             "error": "Invalid level. Must be 'info', 'warning', or 'error'"
         }));
     }
 
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    match db
-        .create_notification(account.id, &req.level, &req.message)
-        .await
-    {
+    match db.create_notification(profile.id, &req.level, &req.message).await {
         Ok(notification) => HttpResponse::Created().json(notification),
         Err(e) => {
             log::error!("Failed to create notification: {:?}", e);
@@ -540,15 +487,15 @@ pub async fn get_notifications(
     user: AuthenticatedUser,
     query: web::Query<PaginationQuery>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
     let limit = query.limit.unwrap_or(100).min(500);
     let offset = query.offset.unwrap_or(0);
 
-    match db.get_notifications(account.id, limit, offset).await {
+    match db.get_notifications(profile.id, limit, offset).await {
         Ok(notifications) => HttpResponse::Ok().json(notifications),
         Err(e) => {
             log::error!("Failed to get notifications: {:?}", e);
@@ -563,12 +510,12 @@ pub async fn get_unread_count(
     db: web::Data<DbContext>,
     user: AuthenticatedUser,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    match db.get_unread_count(account.id).await {
+    match db.get_unread_count(profile.id).await {
         Ok(count) => HttpResponse::Ok().json(serde_json::json!({
             "count": count
         })),
@@ -587,15 +534,12 @@ pub async fn update_notification(
     notification_id: web::Path<uuid::Uuid>,
     req: web::Json<UpdateNotificationRequest>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    match db
-        .update_notification_read(*notification_id, account.id, req.read)
-        .await
-    {
+    match db.update_notification_read(*notification_id, profile.id, req.read).await {
         Ok(notification) => HttpResponse::Ok().json(notification),
         Err(sqlx::Error::RowNotFound) => {
             HttpResponse::NotFound().json(serde_json::json!({
@@ -616,8 +560,8 @@ pub async fn update_notifications_batch(
     user: AuthenticatedUser,
     req: web::Json<serde_json::Value>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
@@ -643,10 +587,7 @@ pub async fn update_notifications_batch(
         }
     };
 
-    match db
-        .update_notifications_read_batch(&notification_ids, account.id, read)
-        .await
-    {
+    match db.update_notifications_read_batch(&notification_ids, profile.id, read).await {
         Ok(notifications) => HttpResponse::Ok().json(notifications),
         Err(e) => {
             log::error!("Failed to update notifications: {:?}", e);
@@ -662,12 +603,12 @@ pub async fn delete_notification(
     user: AuthenticatedUser,
     notification_id: web::Path<uuid::Uuid>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    match db.delete_notification(*notification_id, account.id).await {
+    match db.delete_notification(*notification_id, profile.id).await {
         Ok(_) => HttpResponse::Ok().json(serde_json::json!({
             "message": "Notification deleted successfully"
         })),
@@ -685,8 +626,8 @@ pub async fn delete_notifications_batch(
     user: AuthenticatedUser,
     req: web::Json<serde_json::Value>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
@@ -703,10 +644,7 @@ pub async fn delete_notifications_batch(
         }
     };
 
-    match db
-        .delete_notifications_batch(&notification_ids, account.id)
-        .await
-    {
+    match db.delete_notifications_batch(&notification_ids, profile.id).await {
         Ok(count) => HttpResponse::Ok().json(serde_json::json!({
             "message": format!("{} notification(s) deleted successfully", count),
             "deleted_count": count
@@ -720,33 +658,32 @@ pub async fn delete_notifications_batch(
     }
 }
 
-// Account settings handlers
+// Profile settings handlers
 
-pub async fn get_account_settings(
+pub async fn get_profile_settings(
     db: web::Data<DbContext>,
     user: AuthenticatedUser,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    HttpResponse::Ok().json(AccountSettings {
-        username: account.username,
+    HttpResponse::Ok().json(ProfileSettings {
+        username: profile.username,
     })
 }
 
-pub async fn update_account_settings(
+pub async fn update_profile_settings(
     db: web::Data<DbContext>,
     user: AuthenticatedUser,
-    req: web::Json<UpdateAccountSettingsRequest>,
+    req: web::Json<UpdateProfileSettingsRequest>,
 ) -> impl Responder {
-    let account = match get_account_or_error(&db, &user).await {
-        Ok(acc) => acc,
+    let profile = match get_profile_or_error(&db, &user).await {
+        Ok(p) => p,
         Err(resp) => return resp,
     };
 
-    // Validate username if provided
     if let Some(ref username) = req.username {
         let trimmed = username.trim();
         if trimmed.is_empty() {
@@ -761,17 +698,14 @@ pub async fn update_account_settings(
         }
     }
 
-    match db
-        .update_account_settings(account.id, req.username.clone())
-        .await
-    {
-        Ok(updated_account) => HttpResponse::Ok().json(AccountSettings {
-            username: updated_account.username,
+    match db.update_profile_settings(profile.id, req.username.clone()).await {
+        Ok(updated) => HttpResponse::Ok().json(ProfileSettings {
+            username: updated.username,
         }),
         Err(e) => {
-            log::error!("Failed to update account settings: {:?}", e);
+            log::error!("Failed to update profile settings: {:?}", e);
             HttpResponse::InternalServerError().json(serde_json::json!({
-                "error": "Failed to update account settings"
+                "error": "Failed to update profile settings"
             }))
         }
     }
@@ -779,9 +713,11 @@ pub async fn update_account_settings(
 
 pub async fn get_google_oauth_config() -> impl Responder {
     let client_id = env::var("GOOGLE_OAUTH_CLIENT_ID").unwrap_or_default();
-    
+
     HttpResponse::Ok().json(serde_json::json!({
         "enabled": !client_id.is_empty(),
         "client_id": if !client_id.is_empty() { Some(client_id) } else { None }
     }))
 }
+
+use crate::models::VerifyEmailRequest;

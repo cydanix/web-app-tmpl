@@ -2,9 +2,11 @@
 
 run-db:
 	docker run -d --name webapp-postgres -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=webapp postgres
+	@sleep 2
+	docker exec webapp-postgres psql -U postgres -c "CREATE DATABASE webapp_iam;" 2>/dev/null || true
 
 run-backend:
-	cd backend && DATABASE_URL=postgresql://postgres:postgres@localhost:5432/webapp cargo run
+	cd backend && DATABASE_URL=postgresql://postgres:postgres@localhost:5432/webapp IAM_DATABASE_URL=postgresql://postgres:postgres@localhost:5432/webapp_iam cargo run
 
 run-frontend:
 	cd frontend && npm run dev

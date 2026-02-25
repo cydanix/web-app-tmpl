@@ -4,7 +4,7 @@ use sqlx::FromRow;
 use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct Account {
+pub struct UserProfile {
     pub id: Uuid,
     pub iam_account_id: Uuid,
     pub display_name: Option<String>,
@@ -33,7 +33,7 @@ pub struct GoogleLoginRequest {
 
 #[derive(Debug, Serialize)]
 pub struct AuthResponse {
-    pub account: AccountInfo,
+    pub user: UserInfo,
     pub access_token: String,
     pub refresh_token: String,
     pub access_token_expires_at: DateTime<Utc>,
@@ -48,9 +48,8 @@ pub struct SignupResponse {
 }
 
 #[derive(Debug, Serialize)]
-pub struct AccountInfo {
+pub struct UserInfo {
     pub id: Uuid,
-    pub iam_account_id: Uuid,
     pub email: String,
     pub display_name: Option<String>,
     pub avatar_url: Option<String>,
@@ -83,7 +82,7 @@ pub struct RefreshTokenRequest {
 #[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
 pub struct Notification {
     pub id: Uuid,
-    pub account_id: Uuid,
+    pub profile_id: Uuid,
     pub level: String,
     pub message: String,
     pub read: bool,
@@ -103,12 +102,12 @@ pub struct UpdateNotificationRequest {
 }
 
 #[derive(Debug, Serialize)]
-pub struct AccountSettings {
+pub struct ProfileSettings {
     pub username: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
-pub struct UpdateAccountSettingsRequest {
+pub struct UpdateProfileSettingsRequest {
     pub username: Option<String>,
 }
 

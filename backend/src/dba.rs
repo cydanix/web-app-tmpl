@@ -3,44 +3,42 @@ use std::env;
 use nano_iam::Repo;
 use chrono::Utc;
 use uuid::Uuid;
-use crate::models::{Account, Notification};
+use crate::models::{UserProfile, Notification};
 
 /// Database connection configuration
 pub struct DbConfig {
-    pub url: String,
+    pub iam_url: String,
+    pub app_url: String,
 }
 
 impl DbConfig {
     /// Create database configuration from environment or defaults
     pub fn from_env() -> Self {
-        let url = env::var("DATABASE_URL")
-            .unwrap_or_else(|_| "postgresql://postgres:postgres@localhost:5432/webapp".to_string());
-        Self { url }
+        let default_url = "postgresql://postgres:postgres@localhost:5432/webapp".to_string();
+        let iam_url = env::var("IAM_DATABASE_URL")
+            .unwrap_or_else(|_| env::var("DATABASE_URL").unwrap_or_else(|_| default_url.clone()));
+        let app_url = env::var("DATABASE_URL")
+            .unwrap_or(default_url);
+        Self { iam_url, app_url }
     }
 }
 
-/// Database context that wraps the connection pool
+/// Database context that wraps both IAM and app connection pools
 #[derive(Clone)]
 pub struct DbContext {
-    pool: PgPool,
+    iam_pool: PgPool,
+    app_pool: PgPool,
 }
 
 impl DbContext {
-    /// Create a new database context from a pool
-    pub fn new(pool: PgPool) -> Self {
-        Self { pool }
+    pub fn new(iam_pool: PgPool, app_pool: PgPool) -> Self {
+        Self { iam_pool, app_pool }
     }
 
-    /// Get a reference to the underlying pool (for compatibility with nano-iam)
-    pub fn pool(&self) -> &PgPool {
-        &self.pool
+    /// Get the IAM pool (for AuthService / LeaseLock)
+    pub fn iam_pool(&self) -> &PgPool {
+        &self.iam_pool
     }
-}
-
-/// Initialize database connection pool
-async fn create_pool(config: &DbConfig) -> Result<PgPool, sqlx::Error> {
-    log::info!("Connecting to database...");
-    sqlx::PgPool::connect(&config.url).await
 }
 
 /// Initialize nano-iam schema
@@ -53,61 +51,62 @@ async fn init_iam_schema(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>
     Ok(())
 }
 
-/// Run database migrations
-/// 
-/// Note: We use Migrator with ignore_missing=true to allow nano-iam migrations (version 1)
-/// to exist in the database without being in our migration set. This is necessary because
-/// both systems share the same _sqlx_migrations table but have separate migration files.
+/// Run app database migrations
 async fn run_migrations(pool: &PgPool) -> Result<(), Box<dyn std::error::Error>> {
     use sqlx::migrate::Migrator;
     use std::path::Path;
-    
+
     log::info!("Running backend migrations...");
-    
-    // Create migrator from migrations directory
-    let mut migrator = Migrator::new(Path::new("./migrations"))
+
+    let migrator = Migrator::new(Path::new("./migrations"))
         .await
         .map_err(|e| format!("Failed to create migrator: {}", e))?;
-    
-    // Ignore missing migrations (like nano-iam's version 1) that were applied by other systems
-    migrator.set_ignore_missing(true);
-    
-    // Run migrations
+
     migrator.run(pool)
         .await
         .map_err(|e| format!("Failed to run migrations: {}", e))?;
-    
+
     Ok(())
 }
 
-/// Initialize database: connect, create schema, and run migrations
+/// Initialize databases: connect to both IAM and app pools, run migrations
 pub async fn initialize_database() -> Result<DbContext, Box<dyn std::error::Error>> {
     let config = DbConfig::from_env();
-    let pool = create_pool(&config)
+
+    log::info!("Connecting to IAM database...");
+    let iam_pool = sqlx::PgPool::connect(&config.iam_url)
         .await
-        .map_err(|e| format!("Failed to connect to database: {}", e))?;
+        .map_err(|e| format!("Failed to connect to IAM database: {}", e))?;
 
-    // Set up nano-iam and create its schema FIRST (before our migrations)
-    // This is required because our migrations reference the accounts table from nano-iam
-    init_iam_schema(&pool).await?;
+    let app_pool = if config.app_url == config.iam_url {
+        log::info!("App database is the same as IAM database");
+        iam_pool.clone()
+    } else {
+        log::info!("Connecting to app database...");
+        sqlx::PgPool::connect(&config.app_url)
+            .await
+            .map_err(|e| format!("Failed to connect to app database: {}", e))?
+    };
 
-    // Run our migrations AFTER nano-iam schema is created
-    // Backend migrations start at version 100 to avoid conflicts with nano-iam (version 1)
-    run_migrations(&pool).await?;
+    // nano-iam migrations run against the IAM pool
+    init_iam_schema(&iam_pool).await?;
 
-    Ok(DbContext::new(pool))
+    // App migrations run against the app pool
+    run_migrations(&app_pool).await?;
+
+    Ok(DbContext::new(iam_pool, app_pool))
 }
 
 impl DbContext {
-    /// Create a new account record
-    pub async fn create_account(
+    /// Create a new user profile record
+    pub async fn create_profile(
         &self,
         iam_account_id: Uuid,
         display_name: String,
-    ) -> Result<Account, sqlx::Error> {
-        sqlx::query_as::<_, Account>(
+    ) -> Result<UserProfile, sqlx::Error> {
+        sqlx::query_as::<_, UserProfile>(
             r#"
-            INSERT INTO app_accounts (id, iam_account_id, display_name, created_at, updated_at)
+            INSERT INTO user_profiles (id, iam_account_id, display_name, created_at, updated_at)
             VALUES ($1, $2, $3, $4, $4)
             RETURNING id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
             "#,
@@ -116,55 +115,52 @@ impl DbContext {
         .bind(iam_account_id)
         .bind(display_name)
         .bind(Utc::now())
-        .fetch_one(&self.pool)
+        .fetch_one(&self.app_pool)
         .await
     }
 
-    /// Get account by IAM account ID
-    pub async fn get_account_by_iam_id(
+    /// Get user profile by IAM account ID
+    pub async fn get_profile_by_iam_id(
         &self,
         iam_account_id: Uuid,
-    ) -> Result<Option<Account>, sqlx::Error> {
-        sqlx::query_as::<_, Account>(
+    ) -> Result<Option<UserProfile>, sqlx::Error> {
+        sqlx::query_as::<_, UserProfile>(
             r#"
             SELECT id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
-            FROM app_accounts
+            FROM user_profiles
             WHERE iam_account_id = $1
             "#,
         )
         .bind(iam_account_id)
-        .fetch_optional(&self.pool)
+        .fetch_optional(&self.app_pool)
         .await
     }
 
-    /// Get account by IAM account ID, or create it if it doesn't exist
-    pub async fn get_or_create_account_by_iam_id(
+    /// Get user profile by IAM account ID, or create it if it doesn't exist
+    pub async fn get_or_create_profile(
         &self,
         iam_account_id: Uuid,
         display_name: String,
-    ) -> Result<Account, sqlx::Error> {
-        // Try to get existing account
-        if let Some(account) = self.get_account_by_iam_id(iam_account_id).await? {
-            return Ok(account);
+    ) -> Result<UserProfile, sqlx::Error> {
+        if let Some(profile) = self.get_profile_by_iam_id(iam_account_id).await? {
+            return Ok(profile);
         }
-
-        // Account doesn't exist, create it
-        self.create_account(iam_account_id, display_name).await
+        self.create_profile(iam_account_id, display_name).await
     }
 
-    /// Delete account by IAM account ID
-    pub async fn delete_account_by_iam_id(
+    /// Delete user profile by IAM account ID
+    pub async fn delete_profile_by_iam_id(
         &self,
         iam_account_id: Uuid,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
-            DELETE FROM app_accounts
+            DELETE FROM user_profiles
             WHERE iam_account_id = $1
             "#,
         )
         .bind(iam_account_id)
-        .execute(&self.pool)
+        .execute(&self.app_pool)
         .await?;
         Ok(())
     }
@@ -172,61 +168,61 @@ impl DbContext {
     /// Create a new notification
     pub async fn create_notification(
         &self,
-        account_id: Uuid,
+        profile_id: Uuid,
         level: &str,
         message: &str,
     ) -> Result<Notification, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
-            INSERT INTO notifications (account_id, level, message, read, created_at, updated_at)
+            INSERT INTO notifications (profile_id, level, message, read, created_at, updated_at)
             VALUES ($1, $2, $3, false, $4, $4)
-            RETURNING id, account_id, level, message, read, created_at, updated_at
+            RETURNING id, profile_id, level, message, read, created_at, updated_at
             "#,
         )
-        .bind(account_id)
+        .bind(profile_id)
         .bind(level)
         .bind(message)
         .bind(Utc::now())
-        .fetch_one(&self.pool)
+        .fetch_one(&self.app_pool)
         .await
     }
 
-    /// Get notifications for an account with pagination
+    /// Get notifications for a profile with pagination
     pub async fn get_notifications(
         &self,
-        account_id: Uuid,
+        profile_id: Uuid,
         limit: i64,
         offset: i64,
     ) -> Result<Vec<Notification>, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
-            SELECT id, account_id, level, message, read, created_at, updated_at
+            SELECT id, profile_id, level, message, read, created_at, updated_at
             FROM notifications
-            WHERE account_id = $1
+            WHERE profile_id = $1
             ORDER BY created_at DESC
             LIMIT $2 OFFSET $3
             "#,
         )
-        .bind(account_id)
+        .bind(profile_id)
         .bind(limit)
         .bind(offset)
-        .fetch_all(&self.pool)
+        .fetch_all(&self.app_pool)
         .await
     }
 
-    /// Get unread notifications count for an account
+    /// Get unread notifications count for a profile
     pub async fn get_unread_count(
         &self,
-        account_id: Uuid,
+        profile_id: Uuid,
     ) -> Result<i64, sqlx::Error> {
         let result = sqlx::query_scalar::<_, i64>(
             r#"
             SELECT COUNT(*) FROM notifications
-            WHERE account_id = $1 AND read = false
+            WHERE profile_id = $1 AND read = false
             "#,
         )
-        .bind(account_id)
-        .fetch_one(&self.pool)
+        .bind(profile_id)
+        .fetch_one(&self.app_pool)
         .await?;
         Ok(result)
     }
@@ -235,22 +231,22 @@ impl DbContext {
     pub async fn update_notification_read(
         &self,
         notification_id: Uuid,
-        account_id: Uuid,
+        profile_id: Uuid,
         read: bool,
     ) -> Result<Notification, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
             UPDATE notifications
             SET read = $1, updated_at = $2
-            WHERE id = $3 AND account_id = $4
-            RETURNING id, account_id, level, message, read, created_at, updated_at
+            WHERE id = $3 AND profile_id = $4
+            RETURNING id, profile_id, level, message, read, created_at, updated_at
             "#,
         )
         .bind(read)
         .bind(Utc::now())
         .bind(notification_id)
-        .bind(account_id)
-        .fetch_one(&self.pool)
+        .bind(profile_id)
+        .fetch_one(&self.app_pool)
         .await
     }
 
@@ -258,22 +254,22 @@ impl DbContext {
     pub async fn update_notifications_read_batch(
         &self,
         notification_ids: &[Uuid],
-        account_id: Uuid,
+        profile_id: Uuid,
         read: bool,
     ) -> Result<Vec<Notification>, sqlx::Error> {
         sqlx::query_as::<_, Notification>(
             r#"
             UPDATE notifications
             SET read = $1, updated_at = $2
-            WHERE id = ANY($3) AND account_id = $4
-            RETURNING id, account_id, level, message, read, created_at, updated_at
+            WHERE id = ANY($3) AND profile_id = $4
+            RETURNING id, profile_id, level, message, read, created_at, updated_at
             "#,
         )
         .bind(read)
         .bind(Utc::now())
         .bind(notification_ids)
-        .bind(account_id)
-        .fetch_all(&self.pool)
+        .bind(profile_id)
+        .fetch_all(&self.app_pool)
         .await
     }
 
@@ -281,17 +277,17 @@ impl DbContext {
     pub async fn delete_notification(
         &self,
         notification_id: Uuid,
-        account_id: Uuid,
+        profile_id: Uuid,
     ) -> Result<(), sqlx::Error> {
         sqlx::query(
             r#"
             DELETE FROM notifications
-            WHERE id = $1 AND account_id = $2
+            WHERE id = $1 AND profile_id = $2
             "#,
         )
         .bind(notification_id)
-        .bind(account_id)
-        .execute(&self.pool)
+        .bind(profile_id)
+        .execute(&self.app_pool)
         .await?;
         Ok(())
     }
@@ -300,30 +296,30 @@ impl DbContext {
     pub async fn delete_notifications_batch(
         &self,
         notification_ids: &[Uuid],
-        account_id: Uuid,
+        profile_id: Uuid,
     ) -> Result<u64, sqlx::Error> {
         let result = sqlx::query(
             r#"
             DELETE FROM notifications
-            WHERE id = ANY($1) AND account_id = $2
+            WHERE id = ANY($1) AND profile_id = $2
             "#,
         )
         .bind(notification_ids)
-        .bind(account_id)
-        .execute(&self.pool)
+        .bind(profile_id)
+        .execute(&self.app_pool)
         .await?;
         Ok(result.rows_affected())
     }
 
-    /// Update account settings
-    pub async fn update_account_settings(
+    /// Update user profile settings
+    pub async fn update_profile_settings(
         &self,
-        account_id: Uuid,
+        profile_id: Uuid,
         username: Option<String>,
-    ) -> Result<Account, sqlx::Error> {
-        sqlx::query_as::<_, Account>(
+    ) -> Result<UserProfile, sqlx::Error> {
+        sqlx::query_as::<_, UserProfile>(
             r#"
-            UPDATE app_accounts
+            UPDATE user_profiles
             SET username = $1, updated_at = $2
             WHERE id = $3
             RETURNING id, iam_account_id, display_name, avatar_url, username, created_at, updated_at
@@ -331,8 +327,8 @@ impl DbContext {
         )
         .bind(username)
         .bind(Utc::now())
-        .bind(account_id)
-        .fetch_one(&self.pool)
+        .bind(profile_id)
+        .fetch_one(&self.app_pool)
         .await
     }
 }

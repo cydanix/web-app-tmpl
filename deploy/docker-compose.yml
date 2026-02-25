@@ -71,6 +71,7 @@ services:
     container_name: webapp-backend
     environment:
       DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@postgres:5432/${POSTGRES_DB:-webapp}
+      IAM_DATABASE_URL: ${IAM_DATABASE_URL:-}
       HOST: 0.0.0.0
       PORT: 8080
       RUST_LOG: info

@@ -2,7 +2,7 @@ import { getApiUrl } from "./config";
 
 export interface Notification {
   id: string;
-  account_id: string;
+  profile_id: string;
   level: "info" | "warning" | "error";
   message: string;
   read: boolean;

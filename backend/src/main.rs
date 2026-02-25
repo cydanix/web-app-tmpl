@@ -84,10 +84,8 @@ async fn main() -> std::io::Result<()> {
         .expect("Failed to initialize database");
     
     let email_sender: Arc<dyn EmailSender> = Arc::new(DummyEmailSender);
-    let lock = LeaseLock::new(db_context.pool().clone());
-    
-    // Create IAM repository for auth service
-    let iam_repo = Repo::new(db_context.pool().clone());
+    let lock = LeaseLock::new(db_context.iam_pool().clone());
+    let iam_repo = Repo::new(db_context.iam_pool().clone());
 
     let auth_config = AuthConfig {
         token: TokenConfig {
@@ -206,12 +204,12 @@ async fn main() -> std::io::Result<()> {
                         web::delete().to(handlers::delete_notification),
                     ),
             )
-            // Account settings routes
+            // Profile settings routes
             .service(
                 web::scope("/api/account/settings")
                     .wrap(auth.clone())
-                    .route("", web::get().to(handlers::get_account_settings))
-                    .route("", web::put().to(handlers::update_account_settings)),
+                    .route("", web::get().to(handlers::get_profile_settings))
+                    .route("", web::put().to(handlers::update_profile_settings)),
             )
     })
     .bind(&bind_address)?
