@@ -8,12 +8,12 @@ use crate::dba::DbContext;
 use crate::errors::AppError;
 use crate::models::{
     AuthResponse, BatchDeleteResponse, BatchNotificationIdsRequest,
-    BatchUpdateNotificationsRequest, ChangePasswordRequest, CreateNotificationRequest,
-    DeleteAccountRequest, GoogleLoginRequest, HealthResponse, InviteMemberRequest, LoginRequest,
-    LogoutRequest, OrgMemberInfo, OrgResponse, PaginationQuery, ProfileSettings,
-    RefreshTokenRequest, ResendVerificationRequest, SignupRequest, SignupResponse,
-    UpdateMemberRoleRequest, UpdateNotificationRequest, UpdateProfileSettingsRequest,
-    UserInfo, VerifyEmailRequest,
+    BatchUpdateNotificationsRequest, ChangePasswordRequest, CreateInvitationRequest,
+    CreateNotificationRequest, DeleteAccountRequest, GoogleLoginRequest, HealthResponse,
+    LoginRequest, LogoutRequest, OrgInvitationInfo, OrgMemberInfo, OrgResponse,
+    PaginationQuery, ProfileSettings, RefreshTokenRequest, ResendVerificationRequest,
+    SignupRequest, SignupResponse, UpdateMemberRoleRequest, UpdateNotificationRequest,
+    UpdateProfileSettingsRequest, UserInfo, VerifyEmailRequest,
 };
 
 fn build_user_info(user: &AuthenticatedUser, iam: &nano_iam::Account) -> UserInfo {
@@ -56,23 +56,30 @@ pub async fn signup(
 
     let profile = db.create_profile(iam_account.id, iam_account.email.clone()).await?;
 
-    // Create a default org for the new user
-    let slug_base = req.email.split('@').next().unwrap_or("user");
-    let slug = db.generate_unique_slug(slug_base).await?;
-    let org_name = format!("{}'s Organization", slug_base);
-    let org = db.create_organization(&org_name, &slug).await?;
-
-    // Get the admin role from IAM
-    let admin_role = iam_repo.get_role_by_name("admin").await
-        .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
-        .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
-
-    db.add_org_member(org.id, profile.id, admin_role.id).await?;
+    let org_id = if let Some(ref code) = req.invite_code {
+        if let Some(invitation) = db.get_invitation_by_code(code).await? {
+            db.add_org_member(invitation.org_id, profile.id, invitation.role_id).await?;
+            db.consume_invitation(invitation.id, profile.id).await?;
+            invitation.org_id
+        } else {
+            return Err(AppError::BadRequest("Invalid or expired invitation code".to_string()));
+        }
+    } else {
+        let slug_base = req.email.split('@').next().unwrap_or("user");
+        let slug = db.generate_unique_slug(slug_base).await?;
+        let org_name = format!("{}'s Organization", slug_base);
+        let org = db.create_organization(&org_name, &slug).await?;
+        let admin_role = iam_repo.get_role_by_name("admin").await
+            .map_err(|_| AppError::Internal("Failed to look up admin role".to_string()))?
+            .ok_or_else(|| AppError::Internal("Admin role not found".to_string()))?;
+        db.add_org_member(org.id, profile.id, admin_role.id).await?;
+        org.id
+    };
 
     let _ = db.write_audit_log(
         Some(profile.id), "signup", "auth",
         Some(&iam_account.email), client_ip(&http_req).as_deref(),
-        Some(org.id),
+        Some(org_id),
     ).await;
 
     Ok(HttpResponse::Ok().json(SignupResponse {
@@ -533,11 +540,11 @@ pub async fn get_org(
     }))
 }
 
-pub async fn invite_member(
+pub async fn create_invitation(
     db: web::Data<DbContext>,
     iam_repo: web::Data<Repo>,
     user: AuthenticatedUser,
-    req: web::Json<InviteMemberRequest>,
+    req: web::Json<CreateInvitationRequest>,
     http_req: HttpRequest,
 ) -> Result<HttpResponse, AppError> {
     require_permission(&user, "members:invite")?;
@@ -546,30 +553,85 @@ pub async fn invite_member(
         .map_err(|_| AppError::Internal("Failed to look up role".to_string()))?
         .ok_or_else(|| AppError::BadRequest(format!("Invalid role: {}", req.role)))?;
 
-    // Find the target account by email via IAM repo
-    let iam_account = iam_repo.find_account_by_email(&req.email).await
-        .map_err(|_| AppError::Internal("Failed to look up account".to_string()))?
-        .ok_or_else(|| AppError::NotFound("No account found with that email".to_string()))?;
+    use rand::Rng;
+    let code: String = {
+        let mut bytes = [0u8; 16];
+        rand::thread_rng().fill(&mut bytes);
+        bytes.iter().map(|b| format!("{:02x}", b)).collect()
+    };
 
-    let profile = db.get_profile_by_iam_id(iam_account.id)
-        .await?
-        .ok_or_else(|| AppError::NotFound("User profile not found for that email".to_string()))?;
+    let expires_at = chrono::Utc::now() + chrono::Duration::days(7);
 
-    // Check they're not already a member of this org
-    if let Some(_) = db.get_org_for_profile(profile.id).await? {
-        return Err(AppError::Conflict("User already belongs to an organization".to_string()));
-    }
-
-    db.add_org_member(user.org.id, profile.id, role.id).await?;
+    let invitation = db.create_invitation(
+        user.org.id, role.id, user.profile.id, &code, expires_at,
+    ).await?;
 
     let _ = db.write_audit_log(
-        Some(user.profile.id), "invite_member", "org",
-        Some(&req.email), client_ip(&http_req).as_deref(),
+        Some(user.profile.id), "create_invitation", "org",
+        Some(&format!("role={}, code={}", req.role, &code[..8])),
+        client_ip(&http_req).as_deref(),
         Some(user.org.id),
     ).await;
 
-    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Member invited successfully" })))
+    Ok(HttpResponse::Created().json(serde_json::json!({
+        "id": invitation.id,
+        "code": invitation.code,
+        "expires_at": invitation.expires_at,
+    })))
 }
+
+pub async fn list_invitations(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:invite")?;
+    let invitations = db.list_invitations(user.org.id).await?;
+    Ok(HttpResponse::Ok().json(invitations))
+}
+
+pub async fn revoke_invitation(
+    db: web::Data<DbContext>,
+    user: AuthenticatedUser,
+    invitation_id: web::Path<uuid::Uuid>,
+    http_req: HttpRequest,
+) -> Result<HttpResponse, AppError> {
+    require_permission(&user, "members:invite")?;
+    db.delete_invitation(*invitation_id, user.org.id).await?;
+
+    let _ = db.write_audit_log(
+        Some(user.profile.id), "revoke_invitation", "org",
+        Some(&invitation_id.to_string()),
+        client_ip(&http_req).as_deref(),
+        Some(user.org.id),
+    ).await;
+
+    Ok(HttpResponse::Ok().json(serde_json::json!({ "message": "Invitation revoked" })))
+}
+
+pub async fn get_invitation_info(
+    db: web::Data<DbContext>,
+    iam_repo: web::Data<Repo>,
+    code: web::Path<String>,
+) -> Result<HttpResponse, AppError> {
+    let invitation = db.get_invitation_by_code(&code).await?
+        .ok_or_else(|| AppError::NotFound("Invitation not found or expired".to_string()))?;
+
+    let org = db.get_organization_by_id(invitation.org_id).await?
+        .ok_or_else(|| AppError::Internal("Organization not found".to_string()))?;
+
+    let role_name = match iam_repo.get_role_by_id(invitation.role_id).await {
+        Ok(Some(role)) => role.name,
+        _ => "member".to_string(),
+    };
+
+    Ok(HttpResponse::Ok().json(OrgInvitationInfo {
+        code: invitation.code,
+        org_name: org.name,
+        role: role_name,
+        expires_at: invitation.expires_at,
+    }))
+}
+
 
 pub async fn remove_member(
     db: web::Data<DbContext>,

@@ -233,12 +233,19 @@ async fn main() -> std::io::Result<()> {
                     .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_audit_log)),
             )
+            // Public invitation info (no auth required)
+            .route(
+                "/api/org/invitations/{code}/info",
+                web::get().to(handlers::get_invitation_info),
+            )
             // Organization management (protected)
             .service(
                 web::scope("/api/org")
                     .wrap(auth.clone())
                     .route("", web::get().to(handlers::get_org))
-                    .route("/invite", web::post().to(handlers::invite_member))
+                    .route("/invitations", web::post().to(handlers::create_invitation))
+                    .route("/invitations", web::get().to(handlers::list_invitations))
+                    .route("/invitations/{id}", web::delete().to(handlers::revoke_invitation))
                     .route("/members/{profile_id}", web::delete().to(handlers::remove_member))
                     .route("/members/{profile_id}/role", web::put().to(handlers::update_member_role)),
             )

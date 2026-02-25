@@ -43,8 +43,8 @@ export interface RefreshResponse {
   user?: UserInfo;
 }
 
-export const signup = (email: string, password: string): Promise<SignupResponse> =>
-  api.post("/auth/signup", { email, password });
+export const signup = (email: string, password: string, inviteCode?: string): Promise<SignupResponse> =>
+  api.post("/auth/signup", { email, password, invite_code: inviteCode || undefined });
 
 export const login = (email: string, password: string): Promise<LoginResponse> =>
   api.post("/auth/login", { email, password });

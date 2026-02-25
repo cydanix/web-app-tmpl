@@ -43,7 +43,6 @@ function VerifyContent() {
     try {
       await verifyEmail(accountId, code);
       setSuccess(true);
-      // Redirect to signin after 2 seconds
       setTimeout(() => {
         router.push("/signin?verified=true");
       }, 2000);

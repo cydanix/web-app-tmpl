@@ -45,6 +45,7 @@ pub struct OrgMemberInfo {
 pub struct SignupRequest {
     pub email: String,
     pub password: String,
+    pub invite_code: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -203,9 +204,29 @@ pub struct HealthResponse {
     pub app_db: String,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct OrgInvitation {
+    pub id: Uuid,
+    pub org_id: Uuid,
+    pub code: String,
+    pub role_id: Uuid,
+    pub created_by: Uuid,
+    pub expires_at: DateTime<Utc>,
+    pub consumed_at: Option<DateTime<Utc>>,
+    pub consumed_by: Option<Uuid>,
+    pub created_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct OrgInvitationInfo {
+    pub code: String,
+    pub org_name: String,
+    pub role: String,
+    pub expires_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Deserialize)]
-pub struct InviteMemberRequest {
-    pub email: String,
+pub struct CreateInvitationRequest {
     pub role: String,
 }
 

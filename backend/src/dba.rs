@@ -5,7 +5,7 @@ use chrono::Utc;
 use uuid::Uuid;
 use std::time::Duration;
 use crate::config::AppConfig;
-use crate::models::{UserProfile, Notification, AuditLogEntry, PaginatedResponse, Organization, OrgMember};
+use crate::models::{UserProfile, Notification, AuditLogEntry, PaginatedResponse, Organization, OrgMember, OrgInvitation};
 
 /// Database context that wraps both IAM and app connection pools
 #[derive(Clone)]
@@ -181,6 +181,18 @@ impl DbContext {
 // --------------- Organizations ---------------
 
 impl DbContext {
+    pub async fn get_organization_by_id(
+        &self,
+        org_id: Uuid,
+    ) -> Result<Option<Organization>, sqlx::Error> {
+        sqlx::query_as::<_, Organization>(
+            "SELECT id, name, slug, created_at, updated_at FROM organizations WHERE id = $1",
+        )
+        .bind(org_id)
+        .fetch_optional(&self.app_pool)
+        .await
+    }
+
     pub async fn create_organization(
         &self,
         name: &str,
@@ -276,6 +288,19 @@ impl DbContext {
         Ok(result)
     }
 
+    #[allow(dead_code)]
+    pub async fn count_org_members(
+        &self,
+        org_id: Uuid,
+    ) -> Result<i64, sqlx::Error> {
+        sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM org_members WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.app_pool)
+        .await
+    }
+
     pub async fn remove_org_member(
         &self,
         org_id: Uuid,
@@ -331,6 +356,122 @@ impl DbContext {
         // Append random suffix
         let suffix = &Uuid::new_v4().to_string()[..8];
         Ok(format!("{}-{}", slug, suffix))
+    }
+}
+
+// --------------- Invitations ---------------
+
+impl DbContext {
+    pub async fn create_invitation(
+        &self,
+        org_id: Uuid,
+        role_id: Uuid,
+        created_by: Uuid,
+        code: &str,
+        expires_at: chrono::DateTime<Utc>,
+    ) -> Result<OrgInvitation, sqlx::Error> {
+        sqlx::query_as::<_, OrgInvitation>(
+            r#"
+            INSERT INTO org_invitations (id, org_id, code, role_id, created_by, expires_at, created_at)
+            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            RETURNING id, org_id, code, role_id, created_by, expires_at, consumed_at, consumed_by, created_at
+            "#,
+        )
+        .bind(Uuid::new_v4())
+        .bind(org_id)
+        .bind(code)
+        .bind(role_id)
+        .bind(created_by)
+        .bind(expires_at)
+        .bind(Utc::now())
+        .fetch_one(&self.app_pool)
+        .await
+    }
+
+    pub async fn get_invitation_by_code(
+        &self,
+        code: &str,
+    ) -> Result<Option<OrgInvitation>, sqlx::Error> {
+        sqlx::query_as::<_, OrgInvitation>(
+            r#"
+            SELECT id, org_id, code, role_id, created_by, expires_at, consumed_at, consumed_by, created_at
+            FROM org_invitations
+            WHERE code = $1 AND consumed_at IS NULL AND expires_at > $2
+            "#,
+        )
+        .bind(code)
+        .bind(Utc::now())
+        .fetch_optional(&self.app_pool)
+        .await
+    }
+
+    pub async fn consume_invitation(
+        &self,
+        invitation_id: Uuid,
+        consumed_by: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE org_invitations SET consumed_at = $1, consumed_by = $2 WHERE id = $3",
+        )
+        .bind(Utc::now())
+        .bind(consumed_by)
+        .bind(invitation_id)
+        .execute(&self.app_pool)
+        .await?;
+        Ok(())
+    }
+
+    pub async fn list_invitations(
+        &self,
+        org_id: Uuid,
+    ) -> Result<Vec<OrgInvitation>, sqlx::Error> {
+        sqlx::query_as::<_, OrgInvitation>(
+            r#"
+            SELECT id, org_id, code, role_id, created_by, expires_at, consumed_at, consumed_by, created_at
+            FROM org_invitations
+            WHERE org_id = $1
+            ORDER BY created_at DESC
+            "#,
+        )
+        .bind(org_id)
+        .fetch_all(&self.app_pool)
+        .await
+    }
+
+    pub async fn delete_invitation(
+        &self,
+        invitation_id: Uuid,
+        org_id: Uuid,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query("DELETE FROM org_invitations WHERE id = $1 AND org_id = $2")
+            .bind(invitation_id)
+            .bind(org_id)
+            .execute(&self.app_pool)
+            .await?;
+        Ok(())
+    }
+
+    #[allow(dead_code)]
+    pub async fn delete_org_if_empty(
+        &self,
+        org_id: Uuid,
+    ) -> Result<bool, sqlx::Error> {
+        let count = sqlx::query_scalar::<_, i64>(
+            "SELECT COUNT(*) FROM org_members WHERE org_id = $1",
+        )
+        .bind(org_id)
+        .fetch_one(&self.app_pool)
+        .await?;
+
+        if count == 0 {
+            sqlx::query("DELETE FROM organizations WHERE id = $1")
+                .bind(org_id)
+                .execute(&self.app_pool)
+                .await?;
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 }
 

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import "./globals.css";
 import 'bootstrap/dist/css/bootstrap.min.css';
 import Header from "@/components/header";
@@ -19,10 +20,12 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <I18nProvider>
-          <AuthProvider>
-            <Header />
-            {children}
-          </AuthProvider>
+          <Suspense>
+            <AuthProvider>
+              <Header />
+              {children}
+            </AuthProvider>
+          </Suspense>
         </I18nProvider>
       </body>
     </html>

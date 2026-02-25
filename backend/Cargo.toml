@@ -19,4 +19,5 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "chron
 nano-iam = { path = "../external/nano-iam" }
 uuid = { version = "1", features = ["serde", "v4"] }
 async-trait = "0.1"
+rand = "0.8"
 

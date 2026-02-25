@@ -4,14 +4,17 @@ import { useState, useEffect } from "react";
 import { Container, Card, Form, Button, Alert } from "react-bootstrap";
 import { useAuth } from "@/contexts/auth-context";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import GoogleSignInButton from "@/components/google-signin-button";
 import { isGoogleOAuthEnabledFromEnv } from "@/lib/google-oauth";
 import { useI18n } from "@/contexts/i18n-context";
 
 export default function SignUpPage() {
+  const searchParams = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState(searchParams.get("invite") || "");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleOAuthEnabled, setGoogleOAuthEnabled] = useState(false);
@@ -43,7 +46,7 @@ export default function SignUpPage() {
     setLoading(true);
 
     try {
-      await signup(email, password);
+      await signup(email, password, inviteCode || undefined);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Signup failed");
     } finally {
@@ -99,6 +102,19 @@ export default function SignUpPage() {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   required
                 />
+              </Form.Group>
+
+              <Form.Group className="mb-3">
+                <Form.Label>{t("signup.inviteCode")}</Form.Label>
+                <Form.Control
+                  type="text"
+                  placeholder={t("signup.inviteCodePlaceholder")}
+                  value={inviteCode}
+                  onChange={(e) => setInviteCode(e.target.value)}
+                />
+                <Form.Text className="text-muted">
+                  {t("signup.inviteCodeHint")}
+                </Form.Text>
               </Form.Group>
 
               <Button
